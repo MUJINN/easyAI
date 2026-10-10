@@ -1,0 +1,71 @@
+# easyAI model-relay 业务配置模板
+# 复制为 config.yaml 后按需修改
+
+app:
+  name: easyAI model-relay
+  version: "0.1.0"
+
+# 路由全局默认策略：priority / round_robin / weight / random
+# 各模型可用 strategy 字段单独覆盖
+routing:
+  strategy: priority
+
+# 对外暴露的统一模型目录
+# M3：每个模型可挂多个后端，按 priority 形成 fallback 链
+# - backend: 指向下方 backends 中的后端 id
+# - backend_model: 后端原生模型名（缺省等于统一模型名 id）
+# - priority: 数字越小越优先（缺省 100）
+# - weight: weight 策略下的权重（缺省 1）
+# - enabled: false 可临时摘除该候选
+models:
+  - id: deepseek-chat
+    name: DeepSeek Chat
+    backends:
+      - backend: deepseek-official
+        priority: 10
+      # 备用：DeepSeek 官方不可用时走 OpenRouter
+      - backend: openrouter
+        backend_model: deepseek/deepseek-chat
+        priority: 20
+  - id: gpt-4o-mini
+    name: GPT-4o mini
+    strategy: round_robin
+    backends:
+      - backend: openai-official
+        backend_model: gpt-4o-mini
+      - backend: openrouter
+        backend_model: openai/gpt-4o-mini
+  - id: llama3.1-local
+    name: Llama 3.1 (本地 Ollama)
+    backends:
+      - backend: ollama-local
+        backend_model: llama3.1
+
+  # M2 单后端写法仍然兼容，等价于 backends: [{backend: ...}]
+  # - id: old-style
+  #   backend: deepseek-official
+
+# 上游后端配置（当前支持 type: openai，即 OpenAI 兼容协议）
+# api_key_env: 从该环境变量名读取 API Key（推荐，避免明文入库）
+# api_key: 直接填写明文（仅本地信任环境使用，如 Ollama 无需 Key）
+# enabled: false 可临时下架整个后端，无需重启进程
+backends:
+  - id: openai-official
+    type: openai
+    base_url: https://api.openai.com/v1
+    api_key_env: OPENAI_API_KEY
+    timeout: 60
+  - id: deepseek-official
+    type: openai
+    base_url: https://api.deepseek.com/v1
+    api_key_env: DEEPSEEK_API_KEY
+    timeout: 60
+  - id: openrouter
+    type: openai
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    timeout: 60
+  - id: ollama-local
+    type: openai
+    base_url: http://localhost:11434/v1
+    timeout: 120

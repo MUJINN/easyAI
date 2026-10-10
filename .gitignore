@@ -1,0 +1,24 @@
+# Python（子项目各自的 .gitignore 亦有覆盖）
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+
+# 环境与本地配置
+.env
+config.yaml
+
+# 本地数据与临时文件
+data/*.db
+data/*.db-*
+.tmp/
+
+# IDE / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
