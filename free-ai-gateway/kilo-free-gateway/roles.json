@@ -1,0 +1,182 @@
+[kilo] testing 16 known-good models: nvidia/nemotron-3-ultra-550b-a55b:free, nvidia/nemotron-3-super-120b-a12b:free, cohere/north-mini-code:free, poolside/laguna-s-2.1:free, nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free, kilo-auto/free, openrouter/free, dots-studio/dots-3-note-preview:free, liquid/lfm-2.5-2.6b:free, nvidia/nemotron-3.5-super-vl:free, minimax/minimax-m3.1-flash:free, reflection/beam-free, xingchen-agi/xing4.0-29b-a4b:free, nvidia/nemotron-3.5-lightning:free, poolside/laguna-xs-2.1:free, nvidia/nemotron-3.5-content-safety:free
+[DEFAULT] testing 16 models...
+  [nvidia/nemotron-3-ultra-550b-a55b:free] OK (9445ms)
+  [nvidia/nemotron-3-super-120b-a12b:free] FAIL: Provider returned error
+  [cohere/north-mini-code:free] FAIL: check failed
+  [poolside/laguna-s-2.1:free] OK (1533ms)
+  [nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free] OK (1318ms)
+  [kilo-auto/free] OK (1836ms)
+  [openrouter/free] FAIL: check failed
+  [dots-studio/dots-3-note-preview:free] FAIL: check failed
+  [liquid/lfm-2.5-2.6b:free] FAIL: check failed
+  [nvidia/nemotron-3.5-super-vl:free] FAIL: check failed
+  [minimax/minimax-m3.1-flash:free] OK (1455ms)
+  [reflection/beam-free] OK (697ms)
+  [xingchen-agi/xing4.0-29b-a4b:free] OK (6102ms)
+  [nvidia/nemotron-3.5-lightning:free] FAIL: check failed
+  [poolside/laguna-xs-2.1:free] FAIL: Provider returned error
+  [nvidia/nemotron-3.5-content-safety:free] FAIL: check failed
+[DEFAULT] selected: nvidia/nemotron-3-ultra-550b-a55b:free (9445ms) - passed 7/16
+[OPUS] testing 16 models...
+  [nvidia/nemotron-3-ultra-550b-a55b:free] OK (1603ms)
+  [nvidia/nemotron-3-super-120b-a12b:free] FAIL: Provider returned error
+  [cohere/north-mini-code:free] OK (1861ms)
+  [poolside/laguna-s-2.1:free] OK (2100ms)
+  [nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free] OK (1562ms)
+  [kilo-auto/free] OK (1321ms)
+  [openrouter/free] OK (956ms)
+  [dots-studio/dots-3-note-preview:free] OK (1665ms)
+  [liquid/lfm-2.5-2.6b:free] FAIL: check failed
+  [nvidia/nemotron-3.5-super-vl:free] FAIL: check failed
+  [minimax/minimax-m3.1-flash:free] OK (1350ms)
+  [reflection/beam-free] OK (678ms)
+  [xingchen-agi/xing4.0-29b-a4b:free] FAIL: Provider returned error
+  [nvidia/nemotron-3.5-lightning:free] FAIL: check failed
+  [poolside/laguna-xs-2.1:free] FAIL: check failed
+  [nvidia/nemotron-3.5-content-safety:free] FAIL: check failed
+[OPUS] selected: nvidia/nemotron-3-ultra-550b-a55b:free (1603ms) - passed 9/16
+[SONNET] testing 16 models...
+  [nvidia/nemotron-3-ultra-550b-a55b:free] FAIL: check failed
+  [nvidia/nemotron-3-super-120b-a12b:free] FAIL: Provider returned error
+  [cohere/north-mini-code:free] OK (2563ms)
+  [poolside/laguna-s-2.1:free] OK (4105ms)
+  [nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free] OK (5463ms)
+  [kilo-auto/free] OK (1437ms)
+  [openrouter/free] OK (2000ms)
+  [dots-studio/dots-3-note-preview:free] OK (1401ms)
+  [liquid/lfm-2.5-2.6b:free] FAIL: check failed
+  [nvidia/nemotron-3.5-super-vl:free] FAIL: check failed
+  [minimax/minimax-m3.1-flash:free] FAIL: check failed
+  [reflection/beam-free] FAIL: check failed
+  [xingchen-agi/xing4.0-29b-a4b:free] FAIL: Provider returned error
+  [nvidia/nemotron-3.5-lightning:free] FAIL: check failed
+  [poolside/laguna-xs-2.1:free] FAIL: Provider returned error
+  [nvidia/nemotron-3.5-content-safety:free] FAIL: check failed
+[SONNET] selected: cohere/north-mini-code:free (2563ms) - passed 6/16
+[HAIKU] testing 16 models...
+  [nvidia/nemotron-3-ultra-550b-a55b:free] OK (896ms)
+  [nvidia/nemotron-3-super-120b-a12b:free] FAIL: Provider returned error
+  [cohere/north-mini-code:free] OK (996ms)
+  [poolside/laguna-s-2.1:free] OK (838ms)
+  [nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free] OK (1154ms)
+  [kilo-auto/free] OK (1219ms)
+  [openrouter/free] FAIL: check failed
+  [dots-studio/dots-3-note-preview:free] FAIL: check failed
+  [liquid/lfm-2.5-2.6b:free] FAIL: check failed
+  [nvidia/nemotron-3.5-super-vl:free] FAIL: check failed
+  [minimax/minimax-m3.1-flash:free] OK (1342ms)
+  [reflection/beam-free] OK (660ms)
+  [xingchen-agi/xing4.0-29b-a4b:free] FAIL: Provider returned error
+  [nvidia/nemotron-3.5-lightning:free] FAIL: check failed
+  [poolside/laguna-xs-2.1:free] FAIL: check failed
+  [nvidia/nemotron-3.5-content-safety:free] FAIL: check failed
+[HAIKU] selected: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free (1154ms) - passed 7/16
+[SUBAGENT] testing 16 models...
+  [nvidia/nemotron-3-ultra-550b-a55b:free] FAIL: Sign up for free to continue and explore 500 other models. Takes 2 minutes, no credit card required. Or come back later.
+  [nvidia/nemotron-3-super-120b-a12b:free] FAIL: Sign up for free to continue and explore 500 other models. Takes 2 minutes, no credit card required. Or come back later.
+  [cohere/north-mini-code:free] FAIL: Sign up for free to continue and explore 500 other models. Takes 2 minutes, no credit card required. Or come back later.
+  [poolside/laguna-s-2.1:free] FAIL: Sign up for free to continue and explore 500 other models. Takes 2 minutes, no credit card required. Or come back later.
+  [nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free] FAIL: Sign up for free to continue and explore 500 other models. Takes 2 minutes, no credit card required. Or come back later.
+  [kilo-auto/free] FAIL: Sign up for free to continue and explore 500 other models. Takes 2 minutes, no credit card required. Or come back later.
+  [openrouter/free] FAIL: Sign up for free to continue and explore 500 other models. Takes 2 minutes, no credit card required. Or come back later.
+  [dots-studio/dots-3-note-preview:free] FAIL: Sign up for free to continue and explore 500 other models. Takes 2 minutes, no credit card required. Or come back later.
+  [liquid/lfm-2.5-2.6b:free] FAIL: Sign up for free to continue and explore 500 other models. Takes 2 minutes, no credit card required. Or come back later.
+  [nvidia/nemotron-3.5-super-vl:free] FAIL: Sign up for free to continue and explore 500 other models. Takes 2 minutes, no credit card required. Or come back later.
+  [minimax/minimax-m3.1-flash:free] FAIL: Sign up for free to continue and explore 500 other models. Takes 2 minutes, no credit card required. Or come back later.
+  [reflection/beam-free] FAIL: Sign up for free to continue and explore 500 other models. Takes 2 minutes, no credit card required. Or come back later.
+  [xingchen-agi/xing4.0-29b-a4b:free] FAIL: Sign up for free to continue and explore 500 other models. Takes 2 minutes, no credit card required. Or come back later.
+  [nvidia/nemotron-3.5-lightning:free] FAIL: Sign up for free to continue and explore 500 other models. Takes 2 minutes, no credit card required. Or come back later.
+  [poolside/laguna-xs-2.1:free] FAIL: Sign up for free to continue and explore 500 other models. Takes 2 minutes, no credit card required. Or come back later.
+  [nvidia/nemotron-3.5-content-safety:free] FAIL: Sign up for free to continue and explore 500 other models. Takes 2 minutes, no credit card required. Or come back later.
+[SUBAGENT] ALL FAILED
+{
+  "timestamp": "2026-10-22T08:37:43.521Z",
+  "upstream": "kilo",
+  "roles": {
+    "DEFAULT": {
+      "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "latency": 9445,
+      "meta": {
+        "id": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "tags": [
+          "reasoning",
+          "coding",
+          "longctx"
+        ],
+        "ctx": 1000000,
+        "upstream": "kilo"
+      }
+    },
+    "OPUS": {
+      "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "latency": 1603,
+      "meta": {
+        "id": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "tags": [
+          "reasoning",
+          "coding",
+          "longctx"
+        ],
+        "ctx": 1000000,
+        "upstream": "kilo"
+      }
+    },
+    "SONNET": {
+      "model": "cohere/north-mini-code:free",
+      "latency": 2563,
+      "meta": {
+        "id": "cohere/north-mini-code:free",
+        "tags": [
+          "coding",
+          "agentic"
+        ],
+        "ctx": 256000,
+        "upstream": "kilo"
+      }
+    },
+    "HAIKU": {
+      "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "latency": 1154,
+      "meta": {
+        "id": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+        "tags": [
+          "speed",
+          "reasoning",
+          "multimodal"
+        ],
+        "ctx": 256000,
+        "upstream": "kilo"
+      }
+    }
+  },
+  "all_tested": [
+    {
+      "role": "DEFAULT",
+      "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "latency": 9445,
+      "ok": true
+    },
+    {
+      "role": "OPUS",
+      "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "latency": 1603,
+      "ok": true
+    },
+    {
+      "role": "SONNET",
+      "model": "cohere/north-mini-code:free",
+      "latency": 2563,
+      "ok": true
+    },
+    {
+      "role": "HAIKU",
+      "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "latency": 1154,
+      "ok": true
+    },
+    {
+      "role": "SUBAGENT",
+      "ok": false
+    }
+  ]
+}

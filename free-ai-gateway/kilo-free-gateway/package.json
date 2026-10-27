@@ -1,0 +1,15 @@
+{
+  "name": "kilo-free-gateway",
+  "version": "1.0.0",
+  "private": true,
+  "description": "本地模型目录和 OpenAI / Anthropic 兼容网关",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

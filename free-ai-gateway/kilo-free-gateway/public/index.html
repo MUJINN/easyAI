@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kilo Free Gateway</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, "Segoe UI", sans-serif; background: #101318; color: #e8edf5; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header { border-bottom: 1px solid #292f3a; background: #151920; }
+    .wrap { width: min(1120px, calc(100% - 32px)); margin: auto; }
+    .top { padding: 24px 0 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    h1 { margin: 0; font-size: 22px; letter-spacing: -.3px; }
+    .sub { color: #9ba7b8; margin: 7px 0 0; font-size: 14px; }
+    main { padding: 24px 0 56px; }
+    .notice { border: 1px solid #65502a; background: #292317; color: #ead9ac; border-radius: 10px; padding: 13px 15px; line-height: 1.5; font-size: 13px; margin-bottom: 20px; }
+    .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+    input, select, textarea, button { font: inherit; }
+    input[type="search"], input[type="password"], select, textarea { color: #e8edf5; background: #171c24; border: 1px solid #333b49; border-radius: 8px; padding: 10px 12px; }
+    input[type="search"] { flex: 1; min-width: 220px; }
+    input[type="password"] { width: min(330px, 100%); }
+    button { border: 1px solid #394657; background: #202936; color: #e8edf5; border-radius: 8px; padding: 9px 13px; cursor: pointer; }
+    button:hover { background: #2a3748; }
+    button.primary { background: #6b68e8; border-color: #7774f5; color: white; }
+    button.primary:hover { background: #7976f3; }
+    button:disabled { opacity: .55; cursor: wait; }
+    .muted, .meta { color: #9ba7b8; font-size: 13px; }
+    .catalog { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; }
+    .card, .panel { border: 1px solid #292f3a; background: #151920; border-radius: 11px; padding: 16px; }
+    .card h2 { font-size: 15px; line-height: 1.45; overflow-wrap: anywhere; margin: 0 0 8px; }
+    .badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+    .badge { font-size: 11px; border: 1px solid #394657; border-radius: 999px; padding: 3px 8px; color: #bdc8d8; }
+    .badge.free { color: #8ee0b2; border-color: #286445; background: #14291e; }
+    .badge.unknown { color: #d3bf84; border-color: #65552d; }
+    .card .meta { margin: 4px 0; }
+    .card button { margin-top: 12px; }
+    .empty { grid-column: 1 / -1; color: #9ba7b8; padding: 24px; text-align: center; border: 1px dashed #39414e; border-radius: 10px; }
+    .section-title { margin: 30px 0 12px; font-size: 17px; }
+    .settings { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .test-grid { display: grid; grid-template-columns: minmax(200px, 1fr) auto; gap: 10px; margin-top: 12px; }
+    textarea { width: 100%; min-height: 78px; resize: vertical; grid-column: 1 / -1; line-height: 1.5; }
+    pre { overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: #0d1015; border: 1px solid #292f3a; border-radius: 8px; padding: 13px; color: #d4deed; line-height: 1.5; font-size: 12px; }
+    .result { margin-top: 12px; border-radius: 8px; padding: 12px; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.5 ui-monospace, Consolas, monospace; }
+    .result.good { border: 1px solid #286445; background: #14291e; }
+    .result.bad { border: 1px solid #71373d; background: #2d191c; }
+    .hidden { display: none; }
+    footer { margin-top: 16px; color: #8290a3; font-size: 12px; }
+    a { color: #a9a6ff; }
+    @media (max-width: 600px) { .top { align-items: flex-start; flex-direction: column; } .test-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap top">
+      <div>
+        <h1>Kilo Free Gateway</h1>
+        <p class="sub">本机模型目录、手动测试与客户端配置</p>
+      </div>
+      <div id="catalog-status" class="muted" role="status">尚未加载目录</div>
+    </div>
+  </header>
+  <main class="wrap">
+    <div class="notice">
+      本地网关不代表本地推理。模型测试和对话会将你输入的内容发送给所选上游；免费资格、额度、隐私处理和可用性由上游决定。目录状态不等于模型已通过调用测试。
+    </div>
+
+    <div class="bar">
+      <input id="local-key" type="password" autocomplete="off" placeholder="本地口令（仅设置 LOCAL_KEY 时填写）" aria-label="本地访问口令">
+      <button id="save-key">使用口令</button>
+      <input id="search" type="search" placeholder="搜索模型或能力标签" aria-label="搜索模型">
+      <label class="muted"><input id="free-only" type="checkbox"> 仅显示上游标记免费的模型</label>
+      <button id="refresh">刷新目录</button>
+    </div>
+
+    <section id="catalog" class="catalog" aria-live="polite">
+      <div class="empty">正在读取上游模型目录……</div>
+    </section>
+
+    <h2 class="section-title">手动测试</h2>
+    <section class="panel">
+      <div class="settings">
+        <span class="muted">当前模型</span>
+        <strong id="selected-model">尚未选择</strong>
+      </div>
+      <div class="test-grid">
+        <textarea id="test-prompt" maxlength="2000" aria-label="测试提示词">Reply with OK.</textarea>
+        <button id="test-button" class="primary" disabled>发送一次测试请求</button>
+      </div>
+      <div id="test-result" class="result hidden" role="status"></div>
+      <footer>测试由你手动触发，只发送这条测试消息；不会在启动或刷新目录时自动调用模型。响应正文只在本地页面显示，网关日志不记录提示词或响应内容。</footer>
+    </section>
+
+    <h2 class="section-title">客户端配置</h2>
+    <section class="panel">
+      <div class="settings">
+        <label for="client">客户端格式</label>
+        <select id="client">
+          <option value="claude">Claude Code（Anthropic）</option>
+          <option value="openai">OpenAI 兼容 API</option>
+          <option value="cline">Cline / Continue（OpenAI 兼容）</option>
+        </select>
+        <button id="copy-config">复制配置</button>
+      </div>
+      <pre id="config-output"></pre>
+      <footer>配置中的本地口令会被复制到剪贴板。请只粘贴到可信的本机配置文件；不设置 LOCAL_KEY 时，示例使用占位值。</footer>
+    </section>
+  </main>
+  <script>
+    const $ = (selector) => document.querySelector(selector);
+    const state = { models: [], selected: '', key: sessionStorage.getItem('gateway-local-key') || '' };
+    $('#local-key').value = state.key;
+
+    function apiHeaders(extra = {}) {
+      return { ...extra, ...(state.key ? { Authorization: `Bearer ${state.key}` } : {}) };
+    }
+
+    function showResult(message, good) {
+      const box = $('#test-result');
+      box.className = `result ${good ? 'good' : 'bad'}`;
+      box.textContent = message;
+    }
+
+    function errorMessage(payload) {
+      if (typeof payload === 'string') {
+        try { return errorMessage(JSON.parse(payload)); } catch { return payload.slice(0, 1200); }
+      }
+      if (!payload || typeof payload !== 'object') return '';
+      const error = payload.error;
+      return [
+        typeof error === 'string' ? error : error?.message,
+        payload.message,
+        typeof error?.details === 'string' ? error.details : '',
+        typeof payload.details === 'string' ? payload.details : '',
+      ].find((value) => typeof value === 'string' && value.trim())?.trim().slice(0, 1200) || '';
+    }
+
+    function formatRetryAfter(value) {
+      if (!value) return '';
+      const seconds = Number(value);
+      if (Number.isFinite(seconds)) return `${Math.max(0, Math.ceil(seconds))} 秒后再试`;
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? value : `约 ${date.toLocaleTimeString()} 后再试`;
+    }
+
+    function failureMessage(status, payload, headers) {
+      const message = errorMessage(payload);
+      let diagnosis;
+      if (status === 401 && /local gateway/i.test(message)) {
+        diagnosis = ['本地口令错误或未提供', '在页面顶部填写正确的 LOCAL_KEY，然后点“使用口令”。'];
+      } else if (status === 400) {
+        diagnosis = ['请求或模型参数未被接受', '确认选中的模型仍在目录中；刷新目录后换一个模型重试。'];
+      } else if (status === 401) {
+        diagnosis = ['上游认证未通过', '检查上游当前是否要求账号或授权；本地口令与上游认证是两回事。'];
+      } else if (status === 403) {
+        diagnosis = ['上游拒绝了请求', '可能与账号资格、地区、模型权限或上游使用规则有关；查看上游详情，不要尝试绕过限制。'];
+      } else if (status === 404) {
+        diagnosis = ['模型或上游端点不存在', '模型可能已下架或 ID 已变化；刷新目录并选择仍列出的模型。'];
+      } else if (status === 408 || status === 504) {
+        diagnosis = ['上游响应超时', '稍后重试，或换一个模型；较大的模型和繁忙时段可能需要更久。'];
+      } else if (status === 429) {
+        const retryAfter = formatRetryAfter(headers?.get('retry-after'));
+        diagnosis = ['上游限流或额度暂不可用', retryAfter ? `请${retryAfter}；不要连续重试。` : '稍后再试或换模型；不要连续重试。'];
+      } else if (status >= 500) {
+        diagnosis = ['上游服务或网关通信失败', '先检查网络并稍后重试；若持续发生，换模型或查看上游状态。'];
+      } else {
+        diagnosis = ['请求失败，暂时无法归类', '查看上游原始信息；可刷新目录、换模型后再试。'];
+      }
+
+      const lines = [`失败：HTTP ${status} · ${diagnosis[0]}`, `建议：${diagnosis[1]}`];
+      if (message) lines.push(`返回信息：${message}`);
+      const retryAfter = formatRetryAfter(headers?.get('retry-after'));
+      if (retryAfter && status !== 429) lines.push(`Retry-After：${retryAfter}`);
+      const requestId = headers?.get('x-request-id');
+      if (requestId) lines.push(`上游请求 ID：${requestId}`);
+      if (payload && typeof payload === 'object') {
+        const raw = JSON.stringify(payload, null, 2);
+        if (raw && raw !== '{}' && raw !== JSON.stringify({ error: { message } }, null, 2)) {
+          lines.push(`\n详细响应：\n${raw.slice(0, 1600)}${raw.length > 1600 ? '\n（详情已截断）' : ''}`);
+        }
+      } else if (typeof payload === 'string' && payload.trim() && payload !== message) {
+        lines.push(`\n详细响应：\n${payload.slice(0, 1600)}${payload.length > 1600 ? '\n（详情已截断）' : ''}`);
+      }
+      return lines.join('\n');
+    }
+
+    async function loadCatalog() {
+      const status = $('#catalog-status');
+      const button = $('#refresh');
+      button.disabled = true;
+      status.textContent = '正在读取模型目录…';
+      try {
+        const response = await fetch('/api/catalog', { headers: apiHeaders() });
+        const raw = await response.text();
+        let payload;
+        try { payload = JSON.parse(raw); } catch { payload = raw; }
+        if (!response.ok) {
+          status.textContent = '目录加载失败';
+          $('#catalog').replaceChildren();
+          const empty = document.createElement('div');
+          empty.className = 'empty';
+          empty.textContent = failureMessage(response.status, payload, response.headers);
+          $('#catalog').append(empty);
+          return;
+        }
+        state.models = payload.data || [];
+        status.textContent = `目录更新于 ${new Date(payload.checked_at).toLocaleTimeString()} · ${state.models.length} 个模型`;
+        renderCatalog();
+        if (!state.selected && state.models.length) selectModel(state.models[0].id);
+      } catch (error) {
+        status.textContent = '目录加载失败';
+        $('#catalog').replaceChildren();
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = `${error.message}。确认网关已启动、网络可访问上游；如配置了 LOCAL_KEY，请填写本地口令。`;
+        $('#catalog').append(empty);
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    function renderCatalog() {
+      const query = $('#search').value.trim().toLowerCase();
+      const freeOnly = $('#free-only').checked;
+      const list = state.models.filter((model) => {
+        const text = `${model.id} ${model.name || ''} ${model.owned_by || ''} ${(model.tags || []).join(' ')}`.toLowerCase();
+        return text.includes(query) && (!freeOnly || model.isFree === true);
+      });
+      const root = $('#catalog');
+      root.replaceChildren();
+      if (!list.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = '没有匹配的模型。';
+        root.append(empty);
+        return;
+      }
+      for (const model of list) {
+        const card = document.createElement('article');
+        card.className = 'card';
+        const title = document.createElement('h2');
+        title.textContent = model.id;
+        card.append(title);
+        const badges = document.createElement('div');
+        badges.className = 'badges';
+        const free = document.createElement('span');
+        free.className = `badge ${model.isFree === true ? 'free' : model.isFree === false ? '' : 'unknown'}`;
+        free.textContent = model.isFree === true ? '上游标记免费' : model.isFree === false ? '非免费' : '免费状态未知';
+        badges.append(free);
+        for (const tag of model.tags || []) {
+          const badge = document.createElement('span');
+          badge.className = 'badge';
+          badge.textContent = tag;
+          badges.append(badge);
+        }
+        card.append(badges);
+        const owner = document.createElement('p');
+        owner.className = 'meta';
+        owner.textContent = `提供方 / 路由：${model.owned_by || model.upstream || '上游未说明'}`;
+        card.append(owner);
+        if (model.ctx) {
+          const context = document.createElement('p');
+          context.className = 'meta';
+          context.textContent = `上下文：${Number(model.ctx).toLocaleString()} tokens（项目能力表）`;
+          card.append(context);
+        }
+        const choose = document.createElement('button');
+        choose.textContent = state.selected === model.id ? '当前选择' : '选择并配置';
+        choose.addEventListener('click', () => selectModel(model.id));
+        card.append(choose);
+        root.append(card);
+      }
+    }
+
+    function selectModel(id) {
+      state.selected = id;
+      $('#selected-model').textContent = id;
+      $('#test-button').disabled = false;
+      renderCatalog();
+      renderConfig();
+    }
+
+    function renderConfig() {
+      const model = state.selected || '<MODEL_ID>';
+      const token = state.key || 'dummy';
+      let text;
+      if ($('#client').value === 'claude') {
+        text = `$env:ANTHROPIC_BASE_URL = "http://127.0.0.1:8899"\n$env:ANTHROPIC_AUTH_TOKEN = "${token}"\n$env:ANTHROPIC_MODEL = "${model}"\nclaude`;
+      } else if ($('#client').value === 'cline') {
+        text = JSON.stringify({
+          apiProvider: 'openai',
+          openAiBaseUrl: 'http://127.0.0.1:8899/v1',
+          openAiApiKey: token,
+          model,
+        }, null, 2);
+      } else {
+        text = `Base URL: http://127.0.0.1:8899/v1\nAPI key: ${token}\nModel: ${model}`;
+      }
+      $('#config-output').textContent = text;
+    }
+
+    $('#save-key').addEventListener('click', () => {
+      state.key = $('#local-key').value.trim();
+      if (state.key) sessionStorage.setItem('gateway-local-key', state.key);
+      else sessionStorage.removeItem('gateway-local-key');
+      loadCatalog();
+      renderConfig();
+    });
+    $('#refresh').addEventListener('click', loadCatalog);
+    $('#search').addEventListener('input', renderCatalog);
+    $('#free-only').addEventListener('change', renderCatalog);
+    $('#client').addEventListener('change', renderConfig);
+    $('#test-button').addEventListener('click', async () => {
+      const button = $('#test-button');
+      button.disabled = true;
+      button.textContent = '请求中…';
+      showResult('请求正在发送到所选模型提供方……', true);
+      try {
+        const response = await fetch('/api/test', {
+          method: 'POST',
+          headers: apiHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ model: state.selected, prompt: $('#test-prompt').value }),
+        });
+        const raw = await response.text();
+        let payload;
+        try { payload = JSON.parse(raw); } catch { payload = raw; }
+        if (!response.ok) {
+          showResult(failureMessage(response.status, payload, response.headers), false);
+          return;
+        }
+        const answer = payload.choices?.[0]?.message?.content || JSON.stringify(payload, null, 2);
+        showResult(`HTTP ${response.status}\n${answer}`, true);
+      } catch (error) {
+        showResult(`本机连接失败：${error.message}\n建议：确认网关仍在运行，浏览器打开的是 http://127.0.0.1:8899/；若刚设置 LOCAL_KEY，请重新填写并保存。`, false);
+      } finally {
+        button.disabled = !state.selected;
+        button.textContent = '发送一次测试请求';
+      }
+    });
+    $('#copy-config').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText($('#config-output').textContent);
+        $('#copy-config').textContent = '已复制';
+        setTimeout(() => { $('#copy-config').textContent = '复制配置'; }, 1400);
+      } catch {
+        showResult('复制失败，请手动选择配置文本复制。', false);
+      }
+    });
+
+    renderConfig();
+    loadCatalog();
+  </script>
+</body>
+</html>

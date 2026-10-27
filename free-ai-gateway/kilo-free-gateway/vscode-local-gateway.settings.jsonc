@@ -1,0 +1,146 @@
+{
+    "claudeCode.disableLoginPrompt": true,
+    "claudeCode.environmentVariables": [
+        {
+            "name": "ANTHROPIC_BASE_URL",
+            "value": "http://127.0.0.1:8899"
+        },
+        {
+            "name": "ANTHROPIC_AUTH_TOKEN",
+            "value": "dummy"
+        },
+        {
+            "name": "ANTHROPIC_MODEL",
+            "value": "poolside/laguna-s-2.1:free"
+        },
+        {
+            "name": "ANTHROPIC_DEFAULT_OPUS_MODEL",
+            "value": "nvidia/nemotron-3-ultra-550b-a55b:free"
+        },
+        {
+            "name": "ANTHROPIC_DEFAULT_SONNET_MODEL",
+            "value": "poolside/laguna-s-2.1:free"
+        },
+        {
+            "name": "ANTHROPIC_DEFAULT_HAIKU_MODEL",
+            "value": "nvidia/nemotron-3.5-lightning:free"
+        },
+        {
+            "name": "CLAUDE_CODE_SUBAGENT_MODEL",
+            "value": "nvidia/nemotron-3.5-lightning:free"
+        }
+    ],
+    "kimi-copilot.apiMode": "custom",
+    "kimi-copilot.baseUrl": "http://127.0.0.1:8899/v1",
+    "kimi-copilot.enableModelDiscovery": true,
+    "deepseek-copilot.baseUrl": "http://127.0.0.1:8899/v1",
+    "deepseek-copilot.modelIdOverrides": {
+        "deepseek-flash": "nvidia/nemotron-3.5-super-vl:free",
+        "deepseek-v4-flash": "cohere/north-mini-code:free",
+        "deepseek-v4-pro": "poolside/laguna-s-2.1:free",
+        "deepseek-v4-flash-vision-exp": "nvidia/nemotron-3.5-super-vl:free"
+    },
+    "glm-copilot.modelManagement": {
+        "version": 1,
+        "defaultConnection": {
+            "endpoint": "china-coding",
+            "baseUrl": "http://127.0.0.1:8899/v1"
+        },
+        "models": {
+            "kilo-auto/free": {
+                "apiModelId": "kilo-auto/free",
+                "endpointRoute": "default"
+            },
+            "minimax/minimax-m3.1-flash:free": {
+                "apiModelId": "minimax/minimax-m3.1-flash:free",
+                "endpointRoute": "default"
+            },
+            "nvidia/nemotron-3.5-super-vl:free": {
+                "apiModelId": "nvidia/nemotron-3.5-super-vl:free",
+                "endpointRoute": "default",
+                "visionMode": "native"
+            },
+            "reflection/beam-free": {
+                "apiModelId": "reflection/beam-free",
+                "endpointRoute": "default"
+            },
+            "stealth/glyph-cluster": {
+                "apiModelId": "stealth/glyph-cluster",
+                "endpointRoute": "default"
+            },
+            "dots-studio/dots-3-note-preview:free": {
+                "apiModelId": "dots-studio/dots-3-note-preview:free",
+                "endpointRoute": "default"
+            },
+            "liquid/lfm-2.5-2.6b:free": {
+                "apiModelId": "liquid/lfm-2.5-2.6b:free",
+                "endpointRoute": "default"
+            },
+            "nvidia/nemotron-3.5-lightning:free": {
+                "apiModelId": "nvidia/nemotron-3.5-lightning:free",
+                "endpointRoute": "default"
+            },
+            "poolside/laguna-s-2.1:free": {
+                "apiModelId": "poolside/laguna-s-2.1:free",
+                "endpointRoute": "default"
+            },
+            "cohere/north-mini-code:free": {
+                "apiModelId": "cohere/north-mini-code:free",
+                "endpointRoute": "default"
+            },
+            "nvidia/nemotron-3.5-content-safety:free": {
+                "apiModelId": "nvidia/nemotron-3.5-content-safety:free",
+                "endpointRoute": "default"
+            },
+            "nvidia/nemotron-3-ultra-550b-a55b:free": {
+                "apiModelId": "nvidia/nemotron-3-ultra-550b-a55b:free",
+                "endpointRoute": "default"
+            },
+            "openrouter/free": {
+                "apiModelId": "openrouter/free",
+                "endpointRoute": "default"
+            }
+        },
+        "customModels": {
+            "kilo-auto/free": {
+                "name": "Kilo Auto Free"
+            },
+            "minimax/minimax-m3.1-flash:free": {
+                "name": "MiniMax M3.1 Flash (free)"
+            },
+            "nvidia/nemotron-3.5-super-vl:free": {
+                "name": "Nemotron 3.5 Super VL (free)"
+            },
+            "reflection/beam-free": {
+                "name": "Reflection Beam 1.0 (free)"
+            },
+            "stealth/glyph-cluster": {
+                "name": "Stealth Glyph Cluster (free)"
+            },
+            "dots-studio/dots-3-note-preview:free": {
+                "name": "Dots3-Note Preview (free)"
+            },
+            "liquid/lfm-2.5-2.6b:free": {
+                "name": "Liquid LFM2.5-2.6B (free)"
+            },
+            "nvidia/nemotron-3.5-lightning:free": {
+                "name": "Nemotron 3.5 Lightning (free)"
+            },
+            "poolside/laguna-s-2.1:free": {
+                "name": "Poolside Laguna S 2.1 (free)"
+            },
+            "cohere/north-mini-code:free": {
+                "name": "Cohere North Mini Code (free)"
+            },
+            "nvidia/nemotron-3.5-content-safety:free": {
+                "name": "Nemotron 3.5 Content Safety (moderation)"
+            },
+            "nvidia/nemotron-3-ultra-550b-a55b:free": {
+                "name": "Nemotron 3 Ultra (free; variable latency)"
+            },
+            "openrouter/free": {
+                "name": "OpenRouter Free Models Router"
+            }
+        }
+    }
+}

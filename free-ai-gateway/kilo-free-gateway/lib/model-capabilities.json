@@ -1,0 +1,18 @@
+{
+  "nvidia/nemotron-3-ultra-550b-a55b:free":      {"tags":["reasoning","coding","longctx"], "ctx":1000000, "upstream":"kilo"},
+  "nvidia/nemotron-3-super-120b-a12b:free":      {"tags":["reasoning","general"], "ctx":262000, "upstream":"kilo"},
+  "cohere/north-mini-code:free":                  {"tags":["coding","agentic"], "ctx":256000, "upstream":"kilo"},
+  "poolside/laguna-s-2.1:free":                   {"tags":["coding","benchmark"], "ctx":262000, "upstream":"kilo"},
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free": {"tags":["speed","reasoning","multimodal"], "ctx":256000, "upstream":"kilo"},
+  "kilo-auto/free":                               {"tags":["router"], "ctx":256000, "upstream":"kilo"},
+  "openrouter/free":                              {"tags":["router"], "ctx":200000, "upstream":"openrouter"},
+  "dots-studio/dots-3-note-preview:free":         {"tags":["reasoning","longctx"], "ctx":512000, "upstream":"kilo"},
+  "liquid/lfm-2.5-2.6b:free":                     {"tags":["speed","small"], "ctx":65000, "upstream":"kilo"},
+  "nvidia/nemotron-3.5-super-vl:free":           {"tags":["vision","longctx"], "ctx":1000000, "upstream":"kilo"},
+  "minimax/minimax-m3.1-flash:free":              {"tags":["speed","general"], "ctx":256000, "upstream":"kilo"},
+  "reflection/beam-free":                         {"tags":["reasoning"], "ctx":256000, "upstream":"kilo"},
+  "xingchen-agi/xing4.0-29b-a4b:free":           {"tags":["general"], "ctx":256000, "upstream":"kilo"},
+  "nvidia/nemotron-3.5-lightning:free":          {"tags":["speed","agentic"], "ctx":1000000, "upstream":"kilo"},
+  "poolside/laguna-xs-2.1:free":                  {"tags":["coding","small"], "ctx":262000, "upstream":"kilo"},
+  "nvidia/nemotron-3.5-content-safety:free":     {"tags":["safety"], "ctx":128000, "upstream":"kilo"}
+}
