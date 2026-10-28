@@ -50,6 +50,8 @@
       --success-border: #286445;
       --link: #a9a6ff;
       --footer: #8290a3;
+      --dock-shadow: 0 -8px 28px rgb(0 0 0 / 28%);
+      --check-bg: #101318;
     }
     :root[data-theme="light"] {
       color-scheme: light;
@@ -86,9 +88,12 @@
       --success-border: #9bd4ad;
       --link: #514bc7;
       --footer: #667085;
+      --dock-shadow: 0 -8px 28px rgb(32 38 51 / 14%);
+      --check-bg: #ffffff;
     }
     * { box-sizing: border-box; }
     body { margin: 0; }
+    body.has-selection-dock { padding-bottom: 104px; }
     header { border-bottom: 1px solid var(--border); background: var(--surface); }
     .wrap { width: min(1120px, calc(100% - 32px)); margin: auto; }
     .top { padding: 24px 0 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
@@ -113,8 +118,33 @@
     .card, .panel { border: 1px solid var(--border); background: var(--surface); border-radius: 11px; padding: 16px; }
     .card { cursor: pointer; transition: border-color .12s, background .12s; }
     .card:hover { border-color: var(--button-border); }
-    .card[data-test-selected="true"] { border-color: var(--selected-border); background: var(--selected-bg); box-shadow: 0 0 0 1px var(--selected-border); }
+    .card[data-test-selected="true"] { border-color: var(--button-border); background: var(--selected-bg); }
     .card:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    .card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .card-check {
+      order: 1;
+      flex: 0 0 22px;
+      width: 22px;
+      height: 22px;
+      margin-top: 0;
+      border: 2px solid var(--muted);
+      border-radius: 5px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: var(--check-bg);
+      font-size: 17px;
+      font-weight: 700;
+      line-height: 1;
+      visibility: hidden;
+    }
+    .card[data-test-selected="true"] .card-check { visibility: visible; background: #6b68e8; border-color: #6b68e8; }
+    .card[data-test-selected="true"] .card-check::after { content: "✓"; }
+    .card-heading h2 { min-width: 0; margin-right: auto; }
+    body.is-lasso-pressed, body.is-lasso-pressed * { user-select: none !important; }
+    body.is-lassoing, body.is-lassoing * { cursor: crosshair !important; }
+    #selection-lasso { position: fixed; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 20; }
+    #selection-lasso rect { fill: rgb(107 104 232 / 18%); stroke: #7976f3; stroke-width: 2; vector-effect: non-scaling-stroke; }
     .card h2 { font-size: 15px; line-height: 1.45; overflow-wrap: anywhere; margin: 0 0 8px; }
     .card .model-name { margin: -4px 0 8px; color: var(--muted); font-size: 13px; }
     .badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
@@ -128,6 +158,7 @@
     .card .description details { margin-top: 5px; }
     .card .description summary { color: var(--link); cursor: pointer; }
     .card button { margin-top: 12px; }
+    .card .test-model-button { width: 100%; }
     .card .selection-status { color: var(--selected-text); font-size: 12px; }
     .card-result { margin-top: 12px; padding: 10px; border-radius: 8px; border: 1px solid var(--button-border); background: var(--result-bg); }
     .card-result.good { border-color: var(--success-border); background: var(--success-bg); }
@@ -140,6 +171,25 @@
     .section-title { margin: 30px 0 12px; font-size: 17px; }
     .settings { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
     .selection-toolbar { margin: 0 0 12px; }
+    .selection-actions { display: flex; gap: 8px; align-items: center; }
+    .selection-dock {
+      position: fixed;
+      z-index: 10;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: none;
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      box-shadow: var(--dock-shadow);
+    }
+    .selection-dock.visible { display: block; }
+    .selection-dock-inner { width: min(1120px, 100%); margin: 0 auto; display: flex; align-items: center; gap: 12px; }
+    .selection-dock-copy { min-width: 0; margin-right: auto; }
+    .selection-dock-count { font-weight: 600; }
+    .selection-dock-note { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .selection-actions button, .selection-dock button { white-space: nowrap; }
     .test-grid { display: grid; grid-template-columns: minmax(200px, 1fr) auto; gap: 10px; margin-top: 12px; }
     textarea { width: 100%; min-height: 78px; resize: vertical; grid-column: 1 / -1; line-height: 1.5; }
     pre { overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--surface-inset); border: 1px solid var(--border); border-radius: 8px; padding: 13px; color: var(--soft-text); line-height: 1.5; font-size: 12px; }
@@ -149,6 +199,13 @@
     .hidden { display: none; }
     footer { margin-top: 16px; color: var(--footer); font-size: 12px; }
     a { color: var(--link); }
+    @media (max-width: 700px) {
+      body.has-selection-dock { padding-bottom: 148px; }
+      .selection-dock-inner { flex-wrap: wrap; gap: 8px; }
+      .selection-dock-copy { flex-basis: 100%; }
+      .selection-actions { width: 100%; }
+      .selection-actions button, .selection-dock button { flex: 1 1 auto; }
+    }
     @media (max-width: 600px) { .top { align-items: flex-start; flex-direction: column; } .header-tools { width: 100%; justify-content: space-between; } .test-grid { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -157,7 +214,7 @@
     <div class="wrap top">
       <div>
         <h1>Kilo Free Gateway</h1>
-        <p class="sub">本机模型目录、手动测试与客户端配置</p>
+        <p class="sub">本机模型目录与手动测试</p>
       </div>
       <div class="header-tools">
         <button id="theme-toggle" class="icon-button" type="button" aria-label="切换到亮色主题" title="切换到亮色主题">
@@ -169,7 +226,7 @@
   </header>
   <main class="wrap">
     <div class="notice">
-      本地网关不代表本地推理。模型测试和对话会将你输入的内容发送给所选上游；免费资格、额度、隐私处理和可用性由上游决定。目录状态不等于模型已通过调用测试。
+      ⚠️ 本网关不会在本机运行 AI 模型。测试时你输入的提示词会发送给对应的第三方模型服务商；是否免费、可用及隐私规则由服务商决定。列表能看到模型，不代表模型一定可以正常调用。
     </div>
 
     <div class="bar">
@@ -181,51 +238,48 @@
     </div>
 
     <div class="settings selection-toolbar">
-      <span id="selection-status" class="muted">点击模型卡片选择测试模型；Ctrl/Cmd+点击多选，Shift+点击范围选择，Ctrl/Cmd+A 选择当前可见模型。</span>
-      <button id="clear-selection" disabled>清除测试选择</button>
+      <span id="selection-status" class="muted">点击卡片逐个选中 / 取消，也可按住鼠标左键拖动方框选中；高级：Shift 点击范围多选，Ctrl+A 全选列表。</span>
+      <div class="selection-actions">
+        <button id="top-test-button" class="primary" aria-label="测试已选模型" disabled>全部测试</button>
+        <button id="top-stop-button" aria-label="停止批量测试" hidden>停止测试</button>
+        <button id="clear-selection" aria-label="清空测试选择" disabled>清空选择</button>
+      </div>
     </div>
     <section id="catalog" class="catalog" role="group" aria-label="模型列表，可多选测试">
       <div class="empty">正在读取上游模型目录……</div>
     </section>
 
-    <h2 class="section-title">手动测试</h2>
+    <h2 class="section-title">问答测试</h2>
     <section class="panel">
-      <div class="settings">
-        <span class="muted">当前模型</span>
-        <strong id="selected-model">尚未选择</strong>
-      </div>
       <div class="test-grid">
-        <textarea id="test-prompt" maxlength="2000" aria-label="测试提示词">Reply with OK.</textarea>
+        <textarea id="test-prompt" maxlength="2000" aria-label="测试提示词" placeholder="请输入任意测试提示词"></textarea>
         <button id="test-button" class="primary" disabled>发送一次测试请求</button>
       </div>
       <div id="test-result" class="result hidden" role="status"></div>
-      <footer>选择一个或多个模型后点击测试，所选模型会按目录顺序逐个请求；不选择模型时测试当前配置模型。测试会将这条提示词发送给对应上游并可能消耗额度。响应只在本地页面显示，网关日志不记录提示词或响应内容。</footer>
-    </section>
-
-    <h2 class="section-title">客户端配置</h2>
-    <section class="panel">
-      <div class="settings">
-        <label for="client">客户端格式</label>
-        <select id="client">
-          <option value="claude">Claude Code（Anthropic）</option>
-          <option value="openai">OpenAI 兼容 API</option>
-          <option value="cline">Cline / Continue（OpenAI 兼容）</option>
-        </select>
-        <button id="copy-config">复制配置</button>
-      </div>
-      <pre id="config-output"></pre>
-      <footer>配置中的本地口令会被复制到剪贴板。请只粘贴到可信的本机配置文件；不设置 LOCAL_KEY 时，示例使用占位值。</footer>
+      <footer>所有批量测试，都会使用上面文本框里的内容作为测试提问，可以自行修改。提示词会发送给对应上游并可能消耗额度；响应仅显示在本地页面，网关日志不记录提示词或响应内容。</footer>
     </section>
   </main>
+  <aside id="selection-dock" class="selection-dock" aria-label="批量测试操作">
+    <div class="selection-dock-inner">
+      <div class="selection-dock-copy">
+        <span id="dock-selection-count" class="selection-dock-count">已选择 0 个模型</span>
+        <span class="selection-dock-note">将使用下方【问答测试】的提示词执行测试</span>
+      </div>
+      <button id="dock-test-button" class="primary" aria-label="开始批量测试" disabled>开始批量测试</button>
+      <button id="dock-stop-button" aria-label="停止批量测试" hidden>停止测试</button>
+      <button id="dock-clear-button" aria-label="清空测试选择" disabled>清空选择</button>
+    </div>
+  </aside>
+  <svg id="selection-lasso" aria-hidden="true"><rect hidden></rect></svg>
   <script>
     const $ = (selector) => document.querySelector(selector);
     const state = {
       models: [],
-      selected: '',
       testSelection: new Set(),
       selectionAnchor: '',
       testResults: new Map(),
       testing: false,
+      stopRequested: false,
       theme: document.documentElement.dataset.theme === 'light' ? 'light' : 'dark',
       key: sessionStorage.getItem('gateway-local-key') || '',
     };
@@ -288,27 +342,27 @@
       const message = errorMessage(payload);
       let diagnosis;
       if (status === 401 && /local gateway/i.test(message)) {
-        diagnosis = ['本地口令错误或未提供', '在页面顶部填写正确的 LOCAL_KEY，然后点“使用口令”。'];
+        diagnosis = ['本地访问口令不正确或未填写', '请检查页面顶部填写的本地口令。'];
       } else if (status === 400) {
-        diagnosis = ['请求或模型参数未被接受', '确认选中的模型仍在目录中；刷新目录后换一个模型重试。'];
+        diagnosis = ['模型暂时无法接受这次请求', '刷新模型列表，或换一个模型再试。'];
       } else if (status === 401) {
-        diagnosis = ['上游认证未通过', '检查上游当前是否要求账号或授权；本地口令与上游认证是两回事。'];
+        diagnosis = ['上游服务没有通过认证', '检查该服务当前是否要求账号或授权。'];
       } else if (status === 403) {
-        diagnosis = ['上游拒绝了请求', '可能与账号资格、地区、模型权限或上游使用规则有关；查看上游详情，不要尝试绕过限制。'];
+        diagnosis = ['服务商拒绝了这次请求', '可能与账号、地区或模型权限有关，请查看服务商说明。'];
       } else if (status === 404) {
-        diagnosis = ['模型或上游端点不存在', '模型可能已下架或 ID 已变化；刷新目录并选择仍列出的模型。'];
+        diagnosis = ['找不到这个模型或服务地址', '刷新模型列表后重新选择模型。'];
       } else if (status === 408 || status === 504) {
-        diagnosis = ['上游响应超时', '稍后重试，或换一个模型；较大的模型和繁忙时段可能需要更久。'];
+        diagnosis = ['模型响应超时', '稍后重试，或换一个模型。'];
       } else if (status === 429) {
         const retryAfter = formatRetryAfter(headers?.get('retry-after'));
-        diagnosis = ['上游限流或额度暂不可用', retryAfter ? `请${retryAfter}；不要连续重试。` : '稍后再试或换模型；不要连续重试。'];
+        diagnosis = ['访问太频繁或当前额度已用完', retryAfter ? `请${retryAfter}。` : '请稍后再试，或换一个模型。'];
       } else if (status >= 500) {
-        diagnosis = ['上游服务或网关通信失败', '先检查网络并稍后重试；若持续发生，换模型或查看上游状态。'];
+        diagnosis = ['模型服务暂时出了问题', '请稍后重试，或换一个模型。'];
       } else {
-        diagnosis = ['请求失败，暂时无法归类', '查看上游原始信息；可刷新目录、换模型后再试。'];
+        diagnosis = ['这次请求没有成功', '请稍后重试；如果仍然失败，可以查看下面的技术详情。'];
       }
 
-      const lines = [`失败：HTTP ${status} · ${diagnosis[0]}`, `建议：${diagnosis[1]}`];
+      const lines = [`HTTP ${status}`, diagnosis[1]];
       if (message) lines.push(`返回信息：${message}`);
       const retryAfter = formatRetryAfter(headers?.get('retry-after'));
       if (retryAfter && status !== 429) lines.push(`Retry-After：${retryAfter}`);
@@ -322,7 +376,7 @@
       } else if (typeof payload === 'string' && payload.trim() && payload !== message) {
         lines.push(`\n详细响应：\n${payload.slice(0, 1600)}${payload.length > 1600 ? '\n（详情已截断）' : ''}`);
       }
-      return lines.join('\n');
+      return { summary: diagnosis[0], details: lines.join('\n') };
     }
 
     async function loadCatalog() {
@@ -340,7 +394,8 @@
           $('#catalog').replaceChildren();
           const empty = document.createElement('div');
           empty.className = 'empty';
-          empty.textContent = failureMessage(response.status, payload, response.headers);
+          const failure = failureMessage(response.status, payload, response.headers);
+          empty.textContent = `${failure.summary}\n${failure.details}`;
           $('#catalog').append(empty);
           return;
         }
@@ -351,7 +406,6 @@
         status.textContent = `目录更新于 ${new Date(payload.checked_at).toLocaleTimeString()} · ${state.models.length} 个模型`;
         renderCatalog();
         updateTestControls();
-        if (!state.selected && state.models.length) selectModel(state.models[0].id);
       } catch (error) {
         status.textContent = '目录加载失败';
         $('#catalog').replaceChildren();
@@ -375,20 +429,34 @@
 
     function updateTestControls() {
       const count = state.testSelection.size;
-      const button = $('#test-button');
       $('#selection-status').textContent = count
-        ? `已选 ${count} 个模型用于测试。普通点击单选，Ctrl/Cmd+点击切换，Shift+点击选择范围。`
-        : '点击模型卡片选择测试模型；Ctrl/Cmd+点击多选，Shift+点击范围选择，Ctrl/Cmd+A 选择当前可见模型。';
-      $('#clear-selection').disabled = state.testing || count === 0;
-      button.disabled = state.testing || (!count && !state.selected);
-      button.textContent = state.testing
+        ? `已选择 ${count} 个模型。点击卡片可逐个选中 / 取消，也可按住鼠标左键拖动方框加入选择；高级：Shift 点击范围多选，Ctrl+A 全选列表。`
+        : '点击卡片逐个选中 / 取消，也可按住鼠标左键拖动方框选中；高级：Shift 点击范围多选，Ctrl+A 全选列表。';
+      const dock = $('#selection-dock');
+      dock.classList.toggle('visible', count > 0);
+      document.body.classList.toggle('has-selection-dock', count > 0);
+      $('#dock-selection-count').textContent = `已选择 ${count} 个模型`;
+
+      for (const [id, label] of [['top-test-button', '全部测试'], ['dock-test-button', '开始批量测试']]) {
+        const button = $(`#${id}`);
+        button.disabled = state.testing || count === 0;
+        button.textContent = state.testing ? '测试中…' : label;
+      }
+      for (const id of ['top-stop-button', 'dock-stop-button']) {
+        const button = $(`#${id}`);
+        button.hidden = !state.testing;
+        button.disabled = !state.testing || state.stopRequested;
+        button.textContent = state.stopRequested ? '正在停止…' : '停止测试';
+      }
+      $('#test-button').disabled = state.testing || count === 0;
+      $('#test-button').textContent = state.testing
         ? '按顺序测试中…'
-        : count > 0
-          ? count === 1 ? '测试已选模型' : `逐个测试已选模型（${count}）`
-          : '发送一次测试请求';
+        : count > 0 ? `逐个测试已选模型（${count}）` : '请选择模型';
+      $('#clear-selection').disabled = state.testing || count === 0;
+      $('#dock-clear-button').disabled = state.testing || count === 0;
     }
 
-    function selectTestModel(id, { additive = false, range = false } = {}) {
+    function selectTestModel(id, { range = false } = {}) {
       if (state.testing) return;
       const list = visibleModels();
       const currentIndex = list.findIndex((model) => model.id === id);
@@ -398,13 +466,10 @@
         const anchorIndex = list.findIndex((model) => model.id === state.selectionAnchor);
         const start = anchorIndex < 0 ? currentIndex : Math.min(anchorIndex, currentIndex);
         const end = anchorIndex < 0 ? currentIndex : Math.max(anchorIndex, currentIndex);
-        if (!additive) state.testSelection.clear();
         for (const model of list.slice(start, end + 1)) state.testSelection.add(model.id);
-      } else if (additive) {
-        if (state.testSelection.has(id)) state.testSelection.delete(id);
-        else state.testSelection.add(id);
+      } else if (state.testSelection.has(id)) {
+        state.testSelection.delete(id);
       } else {
-        state.testSelection.clear();
         state.testSelection.add(id);
       }
 
@@ -413,13 +478,105 @@
       updateTestControls();
     }
 
+    const catalog = $('#catalog');
+    const lassoRect = $('#selection-lasso rect');
+    let lasso = null;
+    let suppressLassoClick = false;
+    let clearLassoClickSuppression;
+
+    function renderLassoRect() {
+      if (!lasso?.active) return;
+      lassoRect.setAttribute('x', String(Math.min(lasso.startX, lasso.endX)));
+      lassoRect.setAttribute('y', String(Math.min(lasso.startY, lasso.endY)));
+      lassoRect.setAttribute('width', String(Math.abs(lasso.endX - lasso.startX)));
+      lassoRect.setAttribute('height', String(Math.abs(lasso.endY - lasso.startY)));
+      lassoRect.hidden = false;
+    }
+
+    function finishLasso() {
+      if (!lasso) return;
+      const completed = lasso;
+      lasso = null;
+      document.body.classList.remove('is-lasso-pressed');
+      document.body.classList.remove('is-lassoing');
+      lassoRect.hidden = true;
+      for (const attribute of ['x', 'y', 'width', 'height']) lassoRect.removeAttribute(attribute);
+      if (!completed.active || state.testing) return;
+
+      let changed = false;
+      for (const card of catalog.querySelectorAll('.card')) {
+        const rect = card.getBoundingClientRect();
+        const left = Math.min(completed.startX, completed.endX);
+        const right = Math.max(completed.startX, completed.endX);
+        const top = Math.min(completed.startY, completed.endY);
+        const bottom = Math.max(completed.startY, completed.endY);
+        if (rect.right < left || rect.left > right || rect.bottom < top || rect.top > bottom) continue;
+        const id = card.dataset.modelId;
+        if (id && !state.testSelection.has(id)) {
+          state.testSelection.add(id);
+          state.selectionAnchor = id;
+          changed = true;
+        }
+      }
+      if (changed) {
+        renderCatalog();
+        updateTestControls();
+      }
+    }
+
+    document.addEventListener('pointerdown', (event) => {
+      if (event.pointerType !== 'mouse' || event.button !== 0 || state.testing
+        || event.target.closest('button, input, select, textarea, details, summary, a, [contenteditable="true"]')) return;
+      lasso = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        endX: event.clientX,
+        endY: event.clientY,
+        active: false,
+      };
+      document.body.classList.add('is-lasso-pressed');
+    });
+
+    document.addEventListener('pointermove', (event) => {
+      if (!lasso || event.pointerId !== lasso.pointerId) return;
+      if (!lasso.active) {
+        const dx = event.clientX - lasso.startX;
+        const dy = event.clientY - lasso.startY;
+        if (dx * dx + dy * dy < 36) return;
+        lasso.active = true;
+        document.body.classList.add('is-lassoing');
+      }
+      lasso.endX = event.clientX;
+      lasso.endY = event.clientY;
+      renderLassoRect();
+      event.preventDefault();
+    });
+
+    document.addEventListener('pointerup', (event) => {
+      if (!lasso || event.pointerId !== lasso.pointerId) return;
+      lasso.endX = event.clientX;
+      lasso.endY = event.clientY;
+      const wasActive = lasso.active;
+      renderLassoRect();
+      finishLasso();
+      if (wasActive) {
+        suppressLassoClick = true;
+        clearTimeout(clearLassoClickSuppression);
+        clearLassoClickSuppression = setTimeout(() => { suppressLassoClick = false; }, 0);
+      }
+    });
+    document.addEventListener('pointercancel', (event) => {
+      if (lasso?.pointerId === event.pointerId) finishLasso();
+    });
+
     function appendCardResult(card, result) {
       if (!result) return;
       const box = document.createElement('div');
       box.className = `card-result${result.status === 'success' ? ' good' : result.status === 'failed' ? ' bad' : ''}`;
       const stateLabel = document.createElement('div');
       stateLabel.className = 'result-state';
-      const labels = { queued: '等待测试', running: '测试中', success: '测试成功', failed: '测试失败' };
+      const labels = { queued: '等待测试', running: '测试中', success: '测试成功', failed: '测试失败', stopped: '已停止' };
       stateLabel.textContent = `${labels[result.status] || result.status}${result.elapsed === undefined ? '' : ` · ${result.elapsed.toFixed(1)} 秒`}`;
       box.append(stateLabel);
 
@@ -438,16 +595,19 @@
           box.append(details);
         }
       } else if (result.status === 'failed') {
+        const error = typeof result.error === 'string'
+          ? { summary: result.error, details: '' }
+          : result.error;
         const preview = document.createElement('p');
-        preview.textContent = result.error.slice(0, 280);
+        preview.textContent = error.summary;
         box.append(preview);
-        if (result.error.length > 280) {
+        if (error.details) {
           const details = document.createElement('details');
           const summary = document.createElement('summary');
-          summary.textContent = '查看错误详情';
-          const fullError = document.createElement('p');
-          fullError.textContent = result.error;
-          details.append(summary, fullError);
+          summary.textContent = '查看技术详情';
+          const technicalDetails = document.createElement('p');
+          technicalDetails.textContent = error.details;
+          details.append(summary, technicalDetails);
           box.append(details);
         }
       }
@@ -504,34 +664,37 @@
       list.forEach((model) => {
         const card = document.createElement('article');
         card.className = 'card';
+        card.dataset.modelId = model.id;
         card.tabIndex = state.testing ? -1 : 0;
         card.setAttribute('role', 'group');
         card.dataset.testSelected = String(state.testSelection.has(model.id));
         card.setAttribute('aria-label', `${model.id}${state.testSelection.has(model.id) ? '，已选中测试' : ''}`);
         card.addEventListener('click', (event) => {
-          if (event.target.closest('button, details, summary, a')) return;
-          selectTestModel(model.id, { additive: event.ctrlKey || event.metaKey, range: event.shiftKey });
-        });
-        card.addEventListener('contextmenu', (event) => {
-          if (!state.testSelection.has(model.id) || state.testing) return;
-          event.preventDefault();
-          state.testSelection.delete(model.id);
-          if (state.selectionAnchor === model.id) {
-            state.selectionAnchor = state.testSelection.values().next().value || '';
+          if (suppressLassoClick) {
+            suppressLassoClick = false;
+            clearTimeout(clearLassoClickSuppression);
+            return;
           }
-          renderCatalog();
-          updateTestControls();
+          if (event.target.closest('button, details, summary, a')) return;
+          selectTestModel(model.id, { range: event.shiftKey });
         });
         card.addEventListener('keydown', (event) => {
           if (event.target.closest('button, details, summary, a')) return;
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
-            selectTestModel(model.id, { additive: event.ctrlKey || event.metaKey, range: event.shiftKey });
+            selectTestModel(model.id, { range: event.shiftKey });
           }
         });
+        const heading = document.createElement('div');
+        heading.className = 'card-heading';
+        const check = document.createElement('span');
+        check.className = 'card-check';
+        check.setAttribute('aria-hidden', 'true');
+        heading.append(check);
         const title = document.createElement('h2');
         title.textContent = model.id;
-        card.append(title);
+        heading.append(title);
+        card.append(heading);
         if (model.name && model.name !== model.id) {
           const name = document.createElement('p');
           name.className = 'model-name';
@@ -611,18 +774,21 @@
           warning.title = '该信息由上游模型目录提供；发送敏感信息前请查看提供方政策。';
           badges.append(warning);
         }
-        const choose = document.createElement('button');
-        choose.textContent = state.selected === model.id ? '当前选择' : '选择并配置';
-        choose.disabled = state.testing;
-        choose.addEventListener('click', () => selectModel(model.id));
-        card.append(choose);
+        const testButton = document.createElement('button');
+        testButton.className = 'test-model-button';
+        testButton.textContent = state.testResults.get(model.id)?.status === 'running' ? '测试中…' : '连通测试';
+        testButton.disabled = state.testing;
+        testButton.addEventListener('click', () => runTests([model.id]));
+        card.append(testButton);
         appendCardResult(card, state.testResults.get(model.id));
         root.append(card);
       });
     }
 
-    $('#catalog').addEventListener('keydown', (event) => {
+    document.addEventListener('keydown', (event) => {
       if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'a' || state.testing) return;
+      if (event.target instanceof HTMLElement
+        && (event.target.isContentEditable || event.target.matches('input:not([type="checkbox"]), textarea, select'))) return;
       event.preventDefault();
       state.testSelection = new Set(visibleModels().map((model) => model.id));
       state.selectionAnchor = '';
@@ -637,61 +803,55 @@
       renderCatalog();
       updateTestControls();
     });
-
-    function selectModel(id) {
-      state.selected = id;
-      $('#selected-model').textContent = id;
-      renderCatalog();
-      updateThemeToggle();
-      renderConfig();
-      updateTestControls();
-    }
-
-    function renderConfig() {
-      const model = state.selected || '<MODEL_ID>';
-      const token = state.key || 'dummy';
-      let text;
-      if ($('#client').value === 'claude') {
-        text = `$env:ANTHROPIC_BASE_URL = "http://127.0.0.1:8899"\n$env:ANTHROPIC_AUTH_TOKEN = "${token}"\n$env:ANTHROPIC_MODEL = "${model}"\nclaude`;
-      } else if ($('#client').value === 'cline') {
-        text = JSON.stringify({
-          apiProvider: 'openai',
-          openAiBaseUrl: 'http://127.0.0.1:8899/v1',
-          openAiApiKey: token,
-          model,
-        }, null, 2);
-      } else {
-        text = `Base URL: http://127.0.0.1:8899/v1\nAPI key: ${token}\nModel: ${model}`;
-      }
-      $('#config-output').textContent = text;
-    }
+    $('#dock-clear-button').addEventListener('click', () => $('#clear-selection').click());
+    $('#top-test-button').addEventListener('click', () => startSelectedTests());
+    $('#dock-test-button').addEventListener('click', () => startSelectedTests());
+    $('#test-button').addEventListener('click', () => startSelectedTests());
+    $('#top-stop-button').addEventListener('click', () => stopTests());
+    $('#dock-stop-button').addEventListener('click', () => stopTests());
+    document.addEventListener('keydown', (event) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key !== 'Enter' || state.testing || !state.testSelection.size) return;
+      event.preventDefault();
+      startSelectedTests();
+    });
 
     $('#save-key').addEventListener('click', () => {
       state.key = $('#local-key').value.trim();
       if (state.key) sessionStorage.setItem('gateway-local-key', state.key);
       else sessionStorage.removeItem('gateway-local-key');
       loadCatalog();
-      renderConfig();
     });
     $('#refresh').addEventListener('click', loadCatalog);
     $('#search').addEventListener('input', renderCatalog);
     $('#free-only').addEventListener('change', renderCatalog);
-    $('#client').addEventListener('change', renderConfig);
-    $('#test-button').addEventListener('click', async () => {
+    function startSelectedTests() {
+      const models = state.models.filter((model) => state.testSelection.has(model.id)).map((model) => model.id);
+      return runTests(models);
+    }
+
+    function stopTests() {
+      if (!state.testing || state.stopRequested) return;
+      state.stopRequested = true;
+      updateTestControls();
+      showResult('已请求停止。当前模型的请求结束后，将不会继续请求后续模型。', true);
+    }
+
+    async function runTests(models) {
       if (state.testing) return;
-      const models = state.testSelection.size
-        ? state.models.filter((model) => state.testSelection.has(model.id)).map((model) => model.id)
-        : state.selected ? [state.selected] : [];
       if (!models.length) return;
 
+      const prompt = $('#test-prompt').value;
       state.testing = true;
+      state.stopRequested = false;
       for (const model of models) state.testResults.set(model, { status: 'queued' });
       updateTestControls();
       renderCatalog();
       showResult(`准备按顺序测试 ${models.length} 个模型……`, true);
       let passed = 0;
+      let completed = 0;
       try {
         for (const [index, model] of models.entries()) {
+          if (state.stopRequested) break;
           const result = { status: 'running' };
           state.testResults.set(model, result);
           showResult(`正在测试 ${model}（${index + 1}/${models.length}）……`, true);
@@ -701,7 +861,7 @@
             const response = await fetch('/api/test', {
               method: 'POST',
               headers: apiHeaders({ 'Content-Type': 'application/json' }),
-              body: JSON.stringify({ model, prompt: $('#test-prompt').value }),
+              body: JSON.stringify({ model, prompt }),
             });
             const raw = await response.text();
             result.elapsed = (performance.now() - startedAt) / 1000;
@@ -721,27 +881,29 @@
             result.error = `本机连接失败：${error.message}\n建议：确认网关仍在运行，浏览器打开的是 http://127.0.0.1:8899/；若刚设置 LOCAL_KEY，请重新填写并保存。`;
           }
           state.testResults.set(model, result);
+          completed++;
           renderCatalog();
         }
       } finally {
+        const stopped = state.stopRequested;
+        if (stopped) {
+          for (const model of models) {
+            if (state.testResults.get(model)?.status === 'queued') {
+              state.testResults.set(model, { status: 'stopped' });
+            }
+          }
+        }
         state.testing = false;
+        state.stopRequested = false;
         updateTestControls();
         renderCatalog();
         const allPassed = passed === models.length;
-        showResult(`测试完成：${passed}/${models.length} 个模型成功。各模型的回复或错误显示在对应卡片中。`, allPassed);
+        const summary = stopped
+          ? `已停止：完成 ${completed}/${models.length} 个模型，其中 ${passed} 个成功。`
+          : `测试完成：${passed}/${models.length} 个模型成功。`;
+        showResult(`${summary}各模型的回复或错误显示在对应卡片中。`, !stopped && allPassed);
       }
-    });
-    $('#copy-config').addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText($('#config-output').textContent);
-        $('#copy-config').textContent = '已复制';
-        setTimeout(() => { $('#copy-config').textContent = '复制配置'; }, 1400);
-      } catch {
-        showResult('复制失败，请手动选择配置文本复制。', false);
-      }
-    });
-
-    renderConfig();
+    }
     updateTestControls();
     loadCatalog();
   </script>
