@@ -16,7 +16,9 @@
 
 const http = require('node:http');
 const https = require('node:https');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
+const os = require('node:os');
 const pathModule = require('node:path');
 const zlib = require('node:zlib');
 
@@ -31,6 +33,24 @@ const WORKBUDDY_SKILL_DIR = pathModule.join(ROOT, '..', 'configure-workbuddy-eas
 // 本机网关可选口令：设置后客户端需带 Authorization: Bearer <key>。
 const LOCAL_KEY = process.env.LOCAL_KEY || '';
 
+const USER_DATA_DIR = process.env.EASYAI_DATA_DIR || pathModule.join(
+  process.platform === 'win32'
+    ? (process.env.LOCALAPPDATA || pathModule.join(os.homedir(), 'AppData', 'Local'))
+    : process.platform === 'darwin'
+      ? pathModule.join(os.homedir(), 'Library', 'Application Support')
+      : (process.env.XDG_DATA_HOME || pathModule.join(os.homedir(), '.local', 'share')),
+  'easyAI',
+  'kilo-free-gateway',
+);
+const VAULT_FILE = process.env.EASYAI_VAULT_PATH || pathModule.join(USER_DATA_DIR, 'vault.json');
+const VAULT_PROVIDERS = {
+  sensenova: 'SenseNova（商汤日日新）',
+};
+const VAULT_PASSWORD_MIN_LENGTH = 12;
+
+let vaultKey = null;
+let vaultSecrets = null;
+
 const UPSTREAM_HEADERS = {
   'content-type': 'application/json',
   accept: '*/*',
@@ -39,6 +59,132 @@ const UPSTREAM_HEADERS = {
 
 function log(...args) {
   console.log(new Date().toISOString().slice(11, 19), ...args);
+}
+
+class VaultError extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+  }
+}
+
+function deriveVaultKey(password, salt) {
+  return crypto.scryptSync(password, salt, 32, { N: 32768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 });
+}
+
+function encryptVault(secrets, key, salt) {
+  const iv = crypto.randomBytes(12);
+  const metadata = {
+    version: 1,
+    salt: salt.toString('base64'),
+    providers: Object.keys(secrets),
+  };
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  cipher.setAAD(Buffer.from(JSON.stringify(metadata)));
+  const encrypted = Buffer.concat([
+    cipher.update(JSON.stringify(secrets), 'utf8'),
+    cipher.final(),
+  ]);
+  return {
+    ...metadata,
+    iv: iv.toString('base64'),
+    tag: cipher.getAuthTag().toString('base64'),
+    providers: Object.keys(secrets),
+    ciphertext: encrypted.toString('base64'),
+  };
+}
+
+function decryptVault(envelope, key) {
+  try {
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(envelope.iv, 'base64'));
+    decipher.setAAD(Buffer.from(JSON.stringify({
+      version: envelope.version,
+      salt: envelope.salt,
+      providers: envelope.providers,
+    })));
+    decipher.setAuthTag(Buffer.from(envelope.tag, 'base64'));
+    const plaintext = Buffer.concat([
+      decipher.update(Buffer.from(envelope.ciphertext, 'base64')),
+      decipher.final(),
+    ]).toString('utf8');
+    const secrets = JSON.parse(plaintext);
+    if (!secrets || typeof secrets !== 'object' || Array.isArray(secrets)) {
+      throw new Error('invalid vault content');
+    }
+    return secrets;
+  } catch {
+    throw new VaultError(401, '密码不正确，或凭据库文件已损坏');
+  }
+}
+
+async function readVaultEnvelope() {
+  let contents;
+  try {
+    contents = await fs.promises.readFile(VAULT_FILE, 'utf8');
+  } catch (error) {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  }
+  const envelope = JSON.parse(contents);
+  if (
+    envelope.version !== 1
+    || !Array.isArray(envelope.providers)
+    || typeof envelope.salt !== 'string'
+    || typeof envelope.iv !== 'string'
+    || typeof envelope.tag !== 'string'
+    || typeof envelope.ciphertext !== 'string'
+  ) {
+    throw new Error('凭据库格式无效');
+  }
+  return envelope;
+}
+
+async function writeVaultEnvelope(envelope) {
+  await fs.promises.mkdir(pathModule.dirname(VAULT_FILE), { recursive: true, mode: 0o700 });
+  const temporaryFile = `${VAULT_FILE}.${process.pid}.${crypto.randomBytes(6).toString('hex')}.tmp`;
+  let file;
+  try {
+    file = await fs.promises.open(temporaryFile, 'wx', 0o600);
+    await file.writeFile(`${JSON.stringify(envelope, null, 2)}\n`, 'utf8');
+    await file.sync();
+    await file.close();
+    file = null;
+    await fs.promises.rename(temporaryFile, VAULT_FILE);
+    if (process.platform !== 'win32') {
+      await fs.promises.chmod(VAULT_FILE, 0o600);
+    }
+  } catch (error) {
+    if (file) await file.close();
+    try {
+      await fs.promises.unlink(temporaryFile);
+    } catch (cleanupError) {
+      if (cleanupError.code !== 'ENOENT') throw cleanupError;
+    }
+    throw error;
+  }
+}
+
+async function saveVault(secrets, key, salt) {
+  await writeVaultEnvelope(encryptVault(secrets, key, salt));
+}
+
+async function getVaultStatus() {
+  const envelope = await readVaultEnvelope();
+  return {
+    initialized: Boolean(envelope),
+    unlocked: Boolean(vaultKey && vaultSecrets),
+    providers: Object.entries(VAULT_PROVIDERS).map(([id, name]) => ({
+      id,
+      name,
+      configured: Boolean(envelope?.providers.includes(id)),
+    })),
+  };
+}
+
+function validateVaultPassword(password) {
+  if (typeof password !== 'string' || password.length < VAULT_PASSWORD_MIN_LENGTH) {
+    throw new VaultError(400, `主密码至少需要 ${VAULT_PASSWORD_MIN_LENGTH} 个字符`);
+  }
 }
 
 function requestUpstream(pathname) {
@@ -186,6 +332,17 @@ function authorized(req) {
   return got === LOCAL_KEY || req.headers['x-api-key'] === LOCAL_KEY;
 }
 
+function validVaultOrigin(req) {
+  if (!req.headers.origin) return true;
+  try {
+    const origin = new URL(req.headers.origin);
+    const requestHost = (req.headers.host || '').toLowerCase();
+    return origin.protocol === 'http:' && origin.host.toLowerCase() === requestHost;
+  } catch {
+    return false;
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const path = url.pathname;
@@ -219,6 +376,93 @@ const server = http.createServer(async (req, res) => {
   }
 
   try {
+    if (path.startsWith('/api/vault/')) {
+      if (!validVaultOrigin(req)) {
+        return json(res, 403, { error: { type: 'forbidden', message: '凭据库只允许从本机控制台访问' } });
+      }
+
+      if (path === '/api/vault/status' && req.method === 'GET') {
+        return json(res, 200, await getVaultStatus(), { 'cache-control': 'no-store' });
+      }
+
+      if (path === '/api/vault/setup' && req.method === 'POST') {
+        const body = await readBody(req);
+        validateVaultPassword(body?.password);
+        if (await readVaultEnvelope()) {
+          throw new VaultError(409, '凭据库已经初始化，请使用解锁操作');
+        }
+        const salt = crypto.randomBytes(16);
+        const key = deriveVaultKey(body.password, salt);
+        try {
+          await saveVault({}, key, salt);
+          vaultKey = key;
+          vaultSecrets = {};
+        } catch (error) {
+          key.fill(0);
+          throw error;
+        }
+        return json(res, 201, await getVaultStatus(), { 'cache-control': 'no-store' });
+      }
+
+      if (path === '/api/vault/unlock' && req.method === 'POST') {
+        const body = await readBody(req);
+        if (typeof body?.password !== 'string' || !body.password) {
+          throw new VaultError(400, '请输入凭据库主密码');
+        }
+        const envelope = await readVaultEnvelope();
+        if (!envelope) throw new VaultError(404, '凭据库尚未初始化');
+        vaultKey?.fill(0);
+        vaultKey = null;
+        vaultSecrets = null;
+        const key = deriveVaultKey(body.password, Buffer.from(envelope.salt, 'base64'));
+        try {
+          vaultSecrets = decryptVault(envelope, key);
+        } catch (error) {
+          key.fill(0);
+          throw error;
+        }
+        vaultKey?.fill(0);
+        vaultKey = key;
+        return json(res, 200, await getVaultStatus(), { 'cache-control': 'no-store' });
+      }
+
+      if (path === '/api/vault/lock' && req.method === 'POST') {
+        vaultKey?.fill(0);
+        vaultKey = null;
+        vaultSecrets = null;
+        return json(res, 200, await getVaultStatus(), { 'cache-control': 'no-store' });
+      }
+
+      const providerMatch = path.match(/^\/api\/vault\/providers\/([a-z0-9-]+)$/);
+      if (providerMatch && ['PUT', 'DELETE'].includes(req.method)) {
+        const providerId = providerMatch[1];
+        if (!VAULT_PROVIDERS[providerId]) {
+          return json(res, 404, { error: { type: 'not_found', message: '不支持的服务商' } });
+        }
+        if (!vaultKey || !vaultSecrets) {
+          throw new VaultError(423, '请先解锁本机凭据库');
+        }
+        const envelope = await readVaultEnvelope();
+        if (!envelope) throw new VaultError(404, '凭据库尚未初始化');
+        const updatedSecrets = { ...vaultSecrets };
+        if (req.method === 'PUT') {
+          const body = await readBody(req);
+          if (typeof body?.key !== 'string' || !body.key.trim() || body.key.trim().length > 4096) {
+            throw new VaultError(400, '请输入有效的服务商 API Key（最多 4096 个字符）');
+          }
+          updatedSecrets[providerId] = body.key.trim();
+        } else {
+          delete updatedSecrets[providerId];
+        }
+        const salt = Buffer.from(envelope.salt, 'base64');
+        await saveVault(updatedSecrets, vaultKey, salt);
+        vaultSecrets = updatedSecrets;
+        return json(res, 200, await getVaultStatus(), { 'cache-control': 'no-store' });
+      }
+
+      return json(res, 404, { error: { type: 'not_found', message: `no route for ${req.method} ${path}` } });
+    }
+
     if (path === '/api/workbuddy-skill' && req.method === 'GET') {
       const skill = await fs.promises.readFile(pathModule.join(WORKBUDDY_SKILL_DIR, 'SKILL.md'));
       res.writeHead(200, {
@@ -301,6 +545,9 @@ const server = http.createServer(async (req, res) => {
     }
     return json(res, 404, { error: { type: 'not_found', message: `no route for ${req.method} ${path}` } });
   } catch (e) {
+    if (e instanceof VaultError) {
+      return json(res, e.status, { error: { type: 'vault_error', message: e.message } }, { 'cache-control': 'no-store' });
+    }
     const isInvalidRequest = e.message === 'invalid JSON body' || e.message === 'request body too large';
     return json(res, isInvalidRequest ? 400 : 500, {
       error: { type: isInvalidRequest ? 'invalid_request' : 'internal_error', message: e.message },

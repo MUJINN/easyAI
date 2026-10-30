@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Kilo Free Gateway</title>
+  <title>EasyAI 本地模型路由 | Kilo Free Gateway</title>
   <script>
     try {
       if (localStorage.getItem('gateway-theme') === 'light') document.documentElement.dataset.theme = 'light';
@@ -192,6 +192,51 @@
     .selection-dock-count { font-weight: 600; }
     .selection-dock-note { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
     .selection-actions button, .selection-dock button { white-space: nowrap; }
+    .home-hero { padding: 18px 0 24px; }
+    .home-eyebrow { margin: 0 0 8px; color: var(--selected-text); font-size: 12px; font-weight: 700; letter-spacing: .08em; }
+    .home-hero h2 { margin: 0; font-size: clamp(24px, 4vw, 34px); letter-spacing: -.7px; }
+    .home-hero p { max-width: 680px; margin: 10px 0 0; color: var(--muted); line-height: 1.65; }
+    .entry-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .entry-card { display: flex; flex-direction: column; min-height: 260px; padding: 22px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+    .entry-card.featured { border-color: var(--selected-border); background: linear-gradient(145deg, var(--selected-bg), var(--surface) 68%); }
+    .entry-card-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .entry-mark { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid var(--border-strong); border-radius: 13px; background: var(--surface-raised); color: var(--selected-text); font-weight: 750; }
+    .entry-badge { border: 1px solid var(--free-border); border-radius: 999px; padding: 5px 9px; color: var(--free-text); background: var(--free-bg); font-size: 11px; }
+    .entry-badge.key-required { border-color: var(--unknown-border); color: var(--unknown-text); background: var(--warning-bg); }
+    .entry-card h3 { margin: 20px 0 7px; font-size: 19px; }
+    .entry-card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .entry-card ul { margin: 14px 0 20px; padding-left: 18px; color: var(--soft-text); font-size: 12px; line-height: 1.8; }
+    .entry-card button { align-self: flex-start; margin-top: auto; }
+    .home-footnote { margin: 18px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .provider-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin: 12px 0 18px; }
+    .provider-heading h2 { margin: 0; font-size: 23px; }
+    .provider-heading p { max-width: 700px; margin: 7px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .provider-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+    .provider-card { padding: 18px; border: 1px solid var(--border); border-radius: 13px; background: var(--surface); }
+    .provider-card h3 { margin: 0; font-size: 16px; }
+    .provider-card p { color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .provider-card .provider-state { display: inline-flex; margin: 12px 0 2px; padding: 4px 8px; border: 1px solid var(--unknown-border); border-radius: 999px; color: var(--unknown-text); font-size: 11px; }
+    .provider-card button { width: 100%; margin-top: 12px; }
+    .flow-panel { margin-top: 20px; padding: 20px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+    .flow-panel h3 { margin: 0 0 6px; font-size: 18px; }
+    .flow-intro { margin: 0 0 18px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .flow-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0 0 18px; padding: 0; list-style: none; }
+    .flow-step { padding: 12px; border: 1px solid var(--border); border-radius: 11px; color: var(--muted); font-size: 12px; }
+    .flow-step[aria-current="step"] { border-color: var(--selected-border); color: var(--selected-text); background: var(--selected-bg); }
+    .flow-step-number { display: block; margin-bottom: 5px; font-size: 10px; font-weight: 750; }
+    .flow-content { min-height: 158px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-raised); }
+    .flow-content h4 { margin: 0 0 8px; font-size: 14px; }
+    .flow-content p { max-width: 760px; margin: 6px 0; color: var(--soft-text); font-size: 13px; line-height: 1.65; }
+    .flow-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+    .prototype-notice { margin-top: 16px; padding: 12px 14px; border: 1px solid var(--notice-border); border-radius: 10px; color: var(--notice-text); background: var(--notice-bg); font-size: 12px; line-height: 1.6; }
+    .provider-status { min-height: 20px; margin-top: 10px; color: var(--muted); font-size: 12px; }
+    .vault-password-row { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin-top: 14px; }
+    .vault-field { display: grid; flex: 1 1 260px; gap: 6px; color: var(--soft-text); font-size: 12px; }
+    .vault-field input { width: 100%; }
+    .vault-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; }
+    .vault-actions button { margin: 0; }
+    .vault-state { color: var(--selected-text); font-size: 12px; }
+    .vault-warning { color: var(--notice-text); }
     .test-grid { display: grid; grid-template-columns: minmax(200px, 1fr) auto; gap: 10px; margin-top: 12px; }
     textarea { width: 100%; min-height: 78px; resize: vertical; grid-column: 1 / -1; line-height: 1.5; }
     pre { overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--surface-inset); border: 1px solid var(--border); border-radius: 8px; padding: 13px; color: var(--soft-text); line-height: 1.5; font-size: 12px; }
@@ -295,6 +340,9 @@
       .selection-dock-copy { flex-basis: 100%; }
       .selection-actions { width: 100%; }
       .selection-actions button, .selection-dock button { flex: 1 1 auto; }
+      .entry-grid { grid-template-columns: 1fr; }
+      .entry-card { min-height: 230px; }
+      .flow-steps { grid-template-columns: 1fr; }
     }
     @media (max-width: 600px) { .top { align-items: flex-start; flex-direction: column; } .header-tools { width: 100%; justify-content: space-between; } .test-grid { grid-template-columns: 1fr; } }
   </style>
@@ -303,10 +351,11 @@
   <header>
     <div class="wrap top">
       <div>
-        <h1>Kilo Free Gateway</h1>
-        <p class="sub">本机模型目录、测试与客户端接入</p>
+        <h1>EasyAI 本地模型路由</h1>
+        <p class="sub">在自己的电脑管理模型服务，并接入常用客户端</p>
       </div>
       <div class="header-tools">
+        <button id="home-button" type="button" hidden>返回首页</button>
         <button id="theme-toggle" class="icon-button" type="button" aria-label="切换到亮色主题" title="切换到亮色主题">
           <span id="theme-icon" aria-hidden="true">☀</span>
         </button>
@@ -315,6 +364,44 @@
     </div>
   </header>
   <main class="wrap">
+    <section id="home-view" aria-labelledby="home-title">
+      <div class="home-hero">
+        <p class="home-eyebrow">YOUR LOCAL MODEL HUB</p>
+        <h2 id="home-title">从选择模型服务开始</h2>
+        <p>可以直接体验 Kilo 提供的免 Key 模型，也可以接入你自己申请了 API Key 的模型服务。服务在本机运行，你决定使用哪家服务以及把请求发送到哪里。</p>
+      </div>
+      <div class="entry-grid">
+        <article class="entry-card featured">
+          <div class="entry-card-top">
+            <div class="entry-mark" aria-hidden="true">K</div>
+            <span class="entry-badge">无需单独申请 Key</span>
+          </div>
+          <h3>Kilo 免费模型</h3>
+          <p>快速查看当前 Kilo 模型目录，选择模型并手动测试，再配置到你的客户端。</p>
+          <ul>
+            <li>开箱即用，适合先体验</li>
+            <li>免费额度和可用性由上游决定</li>
+          </ul>
+          <button id="open-kilo" class="primary" type="button">浏览 Kilo 模型</button>
+        </article>
+        <article class="entry-card">
+          <div class="entry-card-top">
+            <div class="entry-mark" aria-hidden="true">BYOK</div>
+            <span class="entry-badge key-required">需要服务商 API Key</span>
+          </div>
+          <h3>接入自己的模型服务</h3>
+          <p>选择你已有账号的服务商，在本机管理凭据、验证连接并统一选择模型。</p>
+          <ul>
+            <li>请求使用你自己的服务商账号</li>
+            <li>先从 SenseNova 接入流程开始</li>
+          </ul>
+          <button id="open-providers" type="button">查看服务商与接入流程</button>
+        </article>
+      </div>
+      <p class="home-footnote">提示：本机运行有助于让凭据留在你的设备上，但设备安全、操作系统账户和本地恶意软件仍会影响密钥安全。每次请求都会发往你选择的上游服务商。</p>
+    </section>
+
+    <section id="kilo-view" aria-label="Kilo 免费模型" hidden>
     <div class="notice">
       ⚠️ 本网关不会在本机运行 AI 模型。测试时你输入的提示词会发送给对应的第三方模型服务商；是否免费、可用及隐私规则由服务商决定。列表能看到模型，不代表模型一定可以正常调用。
     </div>
@@ -347,6 +434,79 @@
       </div>
       <div id="test-result" class="result hidden" role="status"></div>
       <footer>所有批量测试，都会使用上面文本框里的内容作为测试提问，可以自行修改。提示词会发送给对应上游并可能消耗额度；响应仅显示在本地页面，网关日志不记录提示词或响应内容。</footer>
+    </section>
+    </section>
+
+    <section id="providers-view" aria-labelledby="providers-title" hidden>
+      <div class="provider-heading">
+        <div>
+          <h2 id="providers-title">我的模型服务</h2>
+          <p>连接你自己申请的服务商 Key。每个服务商单独配置，之后可在统一目录中查看模型和连接状态；不会自动把请求切换到其他服务商。</p>
+        </div>
+      </div>
+      <section class="flow-panel" aria-labelledby="vault-title">
+        <h3 id="vault-title">本机加密凭据库</h3>
+        <p class="flow-intro">服务商 Key 将在本机加密保存。首次设置主密码后，请妥善保管：忘记主密码无法恢复凭据。主密码不会保存在浏览器或凭据文件中。</p>
+        <div id="vault-locked">
+          <label class="vault-field" for="vault-password">
+            <span id="vault-password-label">主密码</span>
+            <input id="vault-password" type="password" autocomplete="new-password" minlength="12" maxlength="1024" placeholder="首次设置至少 12 个字符">
+          </label>
+          <div class="vault-actions">
+            <button id="vault-unlock-button" class="primary" type="button">创建并解锁凭据库</button>
+            <span id="vault-lock-state" class="vault-state" role="status" aria-live="polite">正在检查本机凭据库…</span>
+          </div>
+        </div>
+        <div id="vault-unlocked" hidden>
+          <p class="vault-state">凭据库已解锁。Key 仅显示配置状态，不会从服务端回传。</p>
+          <label class="vault-field" for="sensenova-api-key">
+            <span>SenseNova API Key</span>
+            <input id="sensenova-api-key" type="password" autocomplete="off" spellcheck="false" placeholder="输入或替换服务商 Key">
+          </label>
+          <div class="vault-actions">
+            <button id="save-sensenova-key" class="primary" type="button">加密保存 Key</button>
+            <button id="delete-sensenova-key" type="button">删除已保存 Key</button>
+            <button id="vault-lock-button" type="button">锁定凭据库</button>
+            <span id="vault-key-status" class="vault-state" role="status" aria-live="polite"></span>
+          </div>
+        </div>
+      </section>
+      <div class="provider-list">
+        <article class="provider-card">
+          <h3>SenseNova（商汤日日新）</h3>
+          <p>首个接入验证目标 · OpenAI 兼容 API<br>API 地址：<code>https://token.sensenova.cn/v1</code></p>
+          <span id="sensenova-provider-state" class="provider-state">检查凭据状态中…</span>
+          <button id="open-sensenova-flow" class="primary" type="button">查看 Key 接入流程</button>
+        </article>
+        <article class="provider-card">
+          <h3>其他 OpenAI 兼容服务</h3>
+          <p>用于接入其他支持 OpenAI 兼容接口的服务商或本地服务。</p>
+          <span class="provider-state">后续支持</span>
+          <button type="button" disabled>即将开放</button>
+        </article>
+      </div>
+      <section id="sensenova-flow" class="flow-panel" aria-labelledby="flow-title" hidden>
+        <h3 id="flow-title">接入 SenseNova</h3>
+        <p class="flow-intro">先获取服务商 Key，再存入本机加密凭据库。模型连接验证与目录接入将在凭据保存后续接。</p>
+        <ol class="flow-steps" aria-label="SenseNova 接入步骤">
+          <li class="flow-step" data-flow-step="1" aria-current="step"><span class="flow-step-number">第 1 步</span>获取服务商 Key</li>
+          <li class="flow-step" data-flow-step="2"><span class="flow-step-number">第 2 步</span>在本机管理凭据</li>
+          <li class="flow-step" data-flow-step="3"><span class="flow-step-number">第 3 步</span>验证并选择模型</li>
+        </ol>
+        <div id="flow-content" class="flow-content" aria-live="polite">
+          <h4>先从 SenseNova 获取 API Key</h4>
+          <p>登录你自己的 SenseNova 账号，在服务商控制台申请 API Key，并确认账号权限、计费或免费额度说明。</p>
+          <p>获取 Key 后先保存在安全位置。不要把它发给他人，也不要粘贴到聊天或截图里。</p>
+          <p><a href="https://www.sensenova.cn/token-plan" target="_blank" rel="noreferrer">前往 SenseNova 官网申请 API Key</a></p>
+        </div>
+        <div class="prototype-notice">主密码不会写入磁盘。忘记主密码后无法恢复已保存的 Key；本机账户或恶意软件仍可能影响运行中服务的安全。</div>
+        <div class="flow-actions">
+          <button id="flow-back" type="button" hidden>上一步</button>
+          <button id="flow-next" class="primary" type="button">下一步</button>
+          <button id="flow-close" type="button">返回服务商列表</button>
+        </div>
+        <div id="provider-status" class="provider-status" role="status" aria-live="polite"></div>
+      </section>
     </section>
   </main>
   <dialog id="setup-dialog" class="setup-dialog" aria-labelledby="setup-title">
@@ -472,11 +632,14 @@
     const $ = (selector) => document.querySelector(selector);
     const state = {
       models: [],
+      catalogLoaded: false,
       testSelection: new Set(),
       selectionAnchor: '',
       testResults: new Map(),
       testing: false,
       stopRequested: false,
+      providerFlowStep: 1,
+      vault: null,
       theme: document.documentElement.dataset.theme === 'light' ? 'light' : 'dark',
       key: sessionStorage.getItem('gateway-local-key') || '',
     };
@@ -506,6 +669,212 @@
     function apiHeaders(extra = {}) {
       return { ...extra, ...(state.key ? { Authorization: `Bearer ${state.key}` } : {}) };
     }
+
+    async function vaultRequest(path, { method = 'GET', body } = {}) {
+      const headers = apiHeaders(body === undefined ? {} : { 'Content-Type': 'application/json' });
+      const response = await fetch(path, {
+        method,
+        headers,
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        cache: 'no-store',
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        const error = new Error(payload.error?.message || `请求失败（HTTP ${response.status}）`);
+        error.status = response.status;
+        throw error;
+      }
+      return payload;
+    }
+
+    function renderVaultStatus() {
+      const vault = state.vault;
+      const initialized = Boolean(vault?.initialized);
+      const unlocked = Boolean(vault?.unlocked);
+      $('#vault-locked').hidden = unlocked;
+      $('#vault-unlocked').hidden = !unlocked;
+      $('#vault-password-label').textContent = initialized ? '凭据库主密码' : '设置主密码（至少 12 个字符）';
+      $('#vault-password').placeholder = initialized ? '输入主密码以解锁' : '首次设置至少 12 个字符';
+      $('#vault-password').minLength = initialized ? 1 : 12;
+      $('#vault-unlock-button').textContent = initialized ? '解锁凭据库' : '创建并解锁凭据库';
+
+      const sensenova = vault?.providers?.find((provider) => provider.id === 'sensenova');
+      $('#sensenova-provider-state').textContent = sensenova?.configured
+        ? 'Key 已加密保存'
+        : '尚未配置 Key';
+      $('#delete-sensenova-key').disabled = !sensenova?.configured;
+      if (!unlocked) {
+        $('#vault-lock-state').textContent = initialized
+          ? '凭据库已锁定；解锁后才能使用或管理 Key。'
+          : '尚未创建凭据库。';
+      }
+    }
+
+    async function loadVaultStatus() {
+      $('#vault-lock-state').textContent = '正在检查本机凭据库…';
+      try {
+        state.vault = await vaultRequest('/api/vault/status');
+        renderVaultStatus();
+      } catch (error) {
+        state.vault = null;
+        $('#sensenova-provider-state').textContent = '凭据状态不可用';
+        $('#vault-lock-state').textContent = error.status === 401
+          ? '本地网关要求访问口令。请先在 Kilo 页面顶部输入 LOCAL_KEY，再返回此处。'
+          : `读取凭据库状态失败：${error.message}`;
+      }
+    }
+
+    function showView(name) {
+      const views = {
+        home: $('#home-view'),
+        kilo: $('#kilo-view'),
+        providers: $('#providers-view'),
+      };
+      for (const [viewName, element] of Object.entries(views)) {
+        element.hidden = viewName !== name;
+      }
+      $('#home-button').hidden = name === 'home';
+      $('#catalog-status').hidden = name !== 'kilo';
+      window.scrollTo({ top: 0, behavior: 'auto' });
+      if (name === 'kilo' && !state.catalogLoaded) loadCatalog();
+      if (name === 'providers') loadVaultStatus();
+    }
+
+    const providerFlowStages = [
+      {
+        title: '先从 SenseNova 获取 API Key',
+        body: '<p>登录你自己的 SenseNova 账号，在服务商控制台申请 API Key，并确认账号权限、计费或免费额度说明。</p><p>获取 Key 后先保存在安全位置。不要把它发给他人，也不要粘贴到聊天或截图里。</p><p><a href="https://www.sensenova.cn/token-plan" target="_blank" rel="noreferrer">前往 SenseNova 官网申请 API Key</a></p>',
+      },
+      {
+        title: '凭据由本机管理',
+        body: '<p>在“本机加密凭据库”中首次设置主密码并解锁，然后输入 SenseNova Key 并加密保存。主密码不保存在磁盘；忘记主密码无法恢复 Key。</p><p>客户端使用本地网关地址；上游服务商 Key 与可选的本地网关访问口令是两种不同凭据。</p>',
+      },
+      {
+        title: '验证连接并选择模型',
+        body: '<p>接入完成后，网关会用授权凭据读取模型目录。你可以先查看模型，再手动测试选中的模型。</p><p>首版将由你明确选择 SenseNova 模型，不会在失败时悄悄切换到 Kilo 或其他服务商。</p><p>建议验证顺序：读取模型目录 → 测试一次对话 → 复制本地网关地址和模型 ID 到客户端。</p>',
+      },
+    ];
+
+    function renderProviderFlowStep() {
+      const step = state.providerFlowStep;
+      const stage = providerFlowStages[step - 1];
+      for (const item of document.querySelectorAll('[data-flow-step]')) {
+        const isCurrent = Number(item.dataset.flowStep) === step;
+        if (isCurrent) item.setAttribute('aria-current', 'step');
+        else item.removeAttribute('aria-current');
+      }
+      $('#flow-content').innerHTML = `<h4>${stage.title}</h4>${stage.body}`;
+      $('#flow-back').hidden = step === 1;
+      $('#flow-next').textContent = step === providerFlowStages.length ? '完成流程说明' : '下一步';
+      $('#provider-status').textContent = '';
+    }
+
+    $('#open-kilo').addEventListener('click', () => showView('kilo'));
+    $('#open-providers').addEventListener('click', () => showView('providers'));
+    $('#home-button').addEventListener('click', () => showView('home'));
+    $('#open-sensenova-flow').addEventListener('click', () => {
+      state.providerFlowStep = 1;
+      $('#sensenova-flow').hidden = false;
+      renderProviderFlowStep();
+      $('#sensenova-flow').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    $('#flow-next').addEventListener('click', () => {
+      if (state.providerFlowStep < providerFlowStages.length) {
+        state.providerFlowStep++;
+        renderProviderFlowStep();
+      } else {
+        $('#provider-status').textContent = 'Key 可在上方本机加密凭据库中保存；连接测试和模型目录接入将在下一步完成。';
+      }
+    });
+    $('#flow-back').addEventListener('click', () => {
+      if (state.providerFlowStep > 1) {
+        state.providerFlowStep--;
+        renderProviderFlowStep();
+      }
+    });
+    $('#flow-close').addEventListener('click', () => {
+      $('#sensenova-flow').hidden = true;
+      $('#provider-status').textContent = '';
+    });
+    $('#vault-unlock-button').addEventListener('click', async () => {
+      const password = $('#vault-password').value;
+      const initialized = Boolean(state.vault?.initialized);
+      const status = $('#vault-lock-state');
+      const button = $('#vault-unlock-button');
+      if (!password || (!initialized && password.length < 12)) {
+        status.textContent = initialized ? '请输入主密码。' : '主密码至少需要 12 个字符。';
+        return;
+      }
+      button.disabled = true;
+      status.textContent = initialized ? '正在解锁凭据库…' : '正在创建加密凭据库…';
+      try {
+        state.vault = await vaultRequest(initialized ? '/api/vault/unlock' : '/api/vault/setup', {
+          method: 'POST',
+          body: { password },
+        });
+        renderVaultStatus();
+        $('#vault-key-status').textContent = '凭据库已解锁。';
+      } catch (error) {
+        status.textContent = error.message || '操作失败，请重试。';
+      } finally {
+        $('#vault-password').value = '';
+        button.disabled = false;
+      }
+    });
+    $('#save-sensenova-key').addEventListener('click', async () => {
+      const input = $('#sensenova-api-key');
+      const key = input.value.trim();
+      const status = $('#vault-key-status');
+      const button = $('#save-sensenova-key');
+      if (!key) {
+        status.textContent = '请输入 SenseNova API Key。';
+        return;
+      }
+      button.disabled = true;
+      status.textContent = '正在加密并保存…';
+      try {
+        state.vault = await vaultRequest('/api/vault/providers/sensenova', {
+          method: 'PUT',
+          body: { key },
+        });
+        renderVaultStatus();
+        status.textContent = 'Key 已加密保存在本机；页面不会回显或持久化它。';
+      } catch (error) {
+        status.textContent = error.message || '保存失败，请重试。';
+      } finally {
+        input.value = '';
+        button.disabled = false;
+      }
+    });
+    $('#delete-sensenova-key').addEventListener('click', async () => {
+      if (!window.confirm('确定删除本机保存的 SenseNova Key 吗？')) return;
+      const status = $('#vault-key-status');
+      const button = $('#delete-sensenova-key');
+      button.disabled = true;
+      status.textContent = '正在删除…';
+      try {
+        state.vault = await vaultRequest('/api/vault/providers/sensenova', { method: 'DELETE' });
+        renderVaultStatus();
+        status.textContent = '已删除本机保存的 SenseNova Key。';
+      } catch (error) {
+        status.textContent = error.message || '删除失败，请重试。';
+      }
+    });
+    $('#vault-lock-button').addEventListener('click', async () => {
+      const button = $('#vault-lock-button');
+      button.disabled = true;
+      $('#vault-key-status').textContent = '正在锁定凭据库…';
+      $('#sensenova-api-key').value = '';
+      try {
+        state.vault = await vaultRequest('/api/vault/lock', { method: 'POST' });
+        renderVaultStatus();
+        $('#vault-lock-state').textContent = '凭据库已锁定。';
+      } catch (error) {
+        $('#vault-key-status').textContent = error.message || '锁定失败，请重试。';
+      } finally {
+        button.disabled = false;
+      }
+    });
 
     function showResult(message, good) {
       const box = $('#test-result');
@@ -597,6 +966,7 @@
           return;
         }
         state.models = payload.data || [];
+        state.catalogLoaded = true;
         const availableIds = new Set(state.models.map((model) => model.id));
         state.testSelection = new Set([...state.testSelection].filter((id) => availableIds.has(id)));
         if (!availableIds.has(state.selectionAnchor)) state.selectionAnchor = '';
@@ -1436,7 +1806,7 @@
       }
     }
     updateTestControls();
-    loadCatalog();
+    showView('home');
   </script>
 </body>
 </html>

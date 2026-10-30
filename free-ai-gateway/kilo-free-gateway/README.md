@@ -33,6 +33,17 @@ node server.js
 
 设置口令后，在控制台填写该口令；接入 API 的客户端也需使用它作为 Bearer token 或 `x-api-key`。未设置口令时仅允许绑定本机回环地址，服务拒绝无认证的非本机监听。
 
+## 本机服务商 Key 凭据库
+
+在「接入自己的模型服务」页面首次设置凭据库主密码，然后解锁并保存服务商 Key。首版支持 SenseNova Key 的加密保存、替换和删除；**当前尚未将该 Key 接入 SenseNova 模型目录或请求转发**。
+
+- 主密码至少 12 个字符，不会保存到浏览器或凭据文件；网关重启后需要重新解锁。
+- 服务商 Key 使用 Node.js `scrypt` 派生密钥和 AES-256-GCM 加密后保存在本机用户数据目录。Windows 默认位置为 `%LOCALAPPDATA%\easyAI\kilo-free-gateway\vault.json`；macOS/Linux 使用各自用户数据目录。
+- 解锁期间，Key 会在网关进程内存中使用；锁定或退出进程后需要重新解锁。与任何本机程序一样，运行账户下的恶意软件或有权限访问进程的用户仍可能危及凭据。
+- 忘记主密码无法恢复已保存的 Key。请使用密码管理器保管主密码；不要把凭据库文件提交到 Git 或分享给他人。
+- 删除 Key 会将其从当前凭据库内容中移除；受文件系统和 SSD 特性影响，不承诺擦除磁盘历史数据。
+- 页面仅显示 Key 是否已配置，不提供读取或回显 Key 的接口；输入后会清空表单。上游 Key 与可选的 `LOCAL_KEY` 本地网关访问口令用途不同。
+
 控制台刷新模型目录不会调用模型。只有点击测试按钮才会发出测试消息。
 
 控制台默认使用暗色主题，可点击页面顶部按钮切换亮色/暗色；选择会保存在当前浏览器中。
@@ -67,6 +78,9 @@ start.cmd cline
 | GET | `/docs/client-guides/third-party-api-setup.html` | 打开第三方模型 API 接入图文教程 |
 | GET | `/api/catalog` | 上游模型目录与项目能力标签 |
 | POST | `/api/test` | 用户手动触发的单次模型测试 |
+| GET | `/api/vault/status` | 本机凭据库锁定状态和服务商 Key 配置状态 |
+| POST | `/api/vault/setup`、`/api/vault/unlock`、`/api/vault/lock` | 创建、解锁或锁定本机凭据库 |
+| PUT、DELETE | `/api/vault/providers/sensenova` | 保存/替换或删除 SenseNova Key（Key 不会从接口回传） |
 | GET | `/api/workbuddy-skill` | 获取 WorkBuddy 配置 Skill 文本 |
 | GET | `/api/workbuddy-skill.zip` | 下载 WorkBuddy 配置 Skill 压缩包 |
 

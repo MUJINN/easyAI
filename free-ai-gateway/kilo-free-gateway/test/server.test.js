@@ -2,6 +2,8 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
 const net = require('node:net');
+const fs = require('node:fs/promises');
+const os = require('node:os');
 const path = require('node:path');
 const zlib = require('node:zlib');
 const vm = require('node:vm');
@@ -23,9 +25,17 @@ async function unusedPort() {
 test('serves local dashboard, enforces auth, and validates manual tests', async () => {
   const port = await unusedPort();
   const baseUrl = `http://127.0.0.1:${port}`;
+  const vaultDir = await fs.mkdtemp(path.join(os.tmpdir(), 'kilo-gateway-vault-test-'));
+  const vaultPath = path.join(vaultDir, 'vault.json');
   const child = spawn(process.execPath, ['server.js'], {
     cwd: ROOT,
-    env: { ...process.env, HOST: '127.0.0.1', PORT: String(port), LOCAL_KEY: KEY },
+    env: {
+      ...process.env,
+      HOST: '127.0.0.1',
+      PORT: String(port),
+      LOCAL_KEY: KEY,
+      EASYAI_VAULT_PATH: vaultPath,
+    },
     stdio: 'ignore',
   });
 
@@ -50,6 +60,17 @@ test('serves local dashboard, enforces auth, and validates manual tests', async 
     assert.equal(page.status, 200);
     const pageHtml = await page.text();
     assert.match(pageHtml, /Kilo Free Gateway/);
+    assert.match(pageHtml, /id="home-view"/);
+    assert.match(pageHtml, /id="open-kilo"/);
+    assert.match(pageHtml, /id="open-providers"/);
+    assert.match(pageHtml, /id="providers-view"/);
+    assert.match(pageHtml, /SenseNova（商汤日日新）/);
+    assert.match(pageHtml, /id="sensenova-flow"/);
+    assert.match(pageHtml, /https:\/\/www\.sensenova\.cn\/token-plan/);
+    assert.match(pageHtml, /API 地址：<code>https:\/\/token\.sensenova\.cn\/v1<\/code>/);
+    assert.match(pageHtml, /id="vault-password"/);
+    assert.match(pageHtml, /id="sensenova-api-key"/);
+    assert.match(pageHtml, /主密码不会保存在浏览器或凭据文件中/);
     assert.match(pageHtml, /接入客户端/);
     assert.match(pageHtml, /Claude Code（Anthropic Messages）/);
     assert.match(pageHtml, /Cline（OpenAI 兼容表单）/);
@@ -91,6 +112,74 @@ test('serves local dashboard, enforces auth, and validates manual tests', async 
 
     const unauthorized = await fetch(`${baseUrl}/api/catalog`);
     assert.equal(unauthorized.status, 401);
+
+    const vaultHeaders = { Authorization: `Bearer ${KEY}` };
+    const initialVaultStatus = await fetch(`${baseUrl}/api/vault/status`, { headers: vaultHeaders });
+    assert.equal(initialVaultStatus.status, 200);
+    assert.equal((await initialVaultStatus.json()).initialized, false);
+
+    const blockedOrigin = await fetch(`${baseUrl}/api/vault/status`, {
+      headers: { ...vaultHeaders, Origin: 'http://example.com' },
+    });
+    assert.equal(blockedOrigin.status, 403);
+
+    const weakPassword = await fetch(`${baseUrl}/api/vault/setup`, {
+      method: 'POST',
+      headers: { ...vaultHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: 'short' }),
+    });
+    assert.equal(weakPassword.status, 400);
+
+    const masterPassword = 'long-test-master-password';
+    const createdVault = await fetch(`${baseUrl}/api/vault/setup`, {
+      method: 'POST',
+      headers: { ...vaultHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: masterPassword }),
+    });
+    assert.equal(createdVault.status, 201);
+    assert.equal((await createdVault.json()).unlocked, true);
+
+    const apiKey = 'sensenova-secret-test-key';
+    const savedKey = await fetch(`${baseUrl}/api/vault/providers/sensenova`, {
+      method: 'PUT',
+      headers: { ...vaultHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: apiKey }),
+    });
+    assert.equal(savedKey.status, 200);
+    const savedStatus = await savedKey.json();
+    assert.equal(savedStatus.providers.find((provider) => provider.id === 'sensenova').configured, true);
+    assert.equal(JSON.stringify(savedStatus).includes(apiKey), false);
+    const encryptedVault = await fs.readFile(vaultPath, 'utf8');
+    assert.equal(encryptedVault.includes(apiKey), false);
+    assert.equal(encryptedVault.includes(masterPassword), false);
+
+    const lockResponse = await fetch(`${baseUrl}/api/vault/lock`, {
+      method: 'POST',
+      headers: vaultHeaders,
+    });
+    assert.equal((await lockResponse.json()).unlocked, false);
+
+    const wrongUnlock = await fetch(`${baseUrl}/api/vault/unlock`, {
+      method: 'POST',
+      headers: { ...vaultHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: 'incorrect-master-password' }),
+    });
+    assert.equal(wrongUnlock.status, 401);
+
+    const unlockResponse = await fetch(`${baseUrl}/api/vault/unlock`, {
+      method: 'POST',
+      headers: { ...vaultHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: masterPassword }),
+    });
+    assert.equal(unlockResponse.status, 200);
+    assert.equal((await unlockResponse.json()).unlocked, true);
+
+    const deleteKey = await fetch(`${baseUrl}/api/vault/providers/sensenova`, {
+      method: 'DELETE',
+      headers: vaultHeaders,
+    });
+    assert.equal(deleteKey.status, 200);
+    assert.equal((await deleteKey.json()).providers.find((provider) => provider.id === 'sensenova').configured, false);
 
     const guide = await fetch(`${baseUrl}/docs/client-guides/third-party-api-setup.html`);
     assert.equal(guide.status, 200);
@@ -135,6 +224,7 @@ test('serves local dashboard, enforces auth, and validates manual tests', async 
       child.kill();
       await new Promise((resolve) => child.once('exit', resolve));
     }
+    await fs.rm(vaultDir, { recursive: true, force: true });
   }
 });
 
