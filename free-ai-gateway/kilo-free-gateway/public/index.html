@@ -140,7 +140,9 @@
     }
     .card[data-test-selected="true"] .card-check { visibility: visible; background: #6b68e8; border-color: #6b68e8; }
     .card[data-test-selected="true"] .card-check::after { content: "✓"; }
-    .card-heading h2 { min-width: 0; margin-right: auto; }
+    .card-title-group { display: flex; align-items: flex-start; gap: 8px; min-width: 0; margin-right: auto; flex-wrap: wrap; }
+    .card-heading h2 { min-width: 0; margin: 0; }
+    .card .copy-model-button { flex: 0 0 auto; margin: 0; padding: 2px 7px; color: var(--selected-text); font-size: 11px; line-height: 1.4; }
     body.is-lasso-pressed, body.is-lasso-pressed * { user-select: none !important; }
     body.is-lassoing, body.is-lassoing * { cursor: crosshair !important; }
     #selection-lasso { position: fixed; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 20; }
@@ -158,7 +160,7 @@
     .card .description details { margin-top: 5px; }
     .card .description summary { color: var(--link); cursor: pointer; }
     .card button { margin-top: 12px; }
-    .card .test-model-button { width: 100%; }
+    .card .test-model-button, .card .configure-model-button { width: 100%; }
     .card .selection-status { color: var(--selected-text); font-size: 12px; }
     .card-result { margin-top: 12px; padding: 10px; border-radius: 8px; border: 1px solid var(--button-border); background: var(--result-bg); }
     .card-result.good { border-color: var(--success-border); background: var(--success-bg); }
@@ -197,6 +199,94 @@
     .result.good { border: 1px solid var(--success-border); background: var(--success-bg); }
     .result.bad { border: 1px solid var(--error-border); background: var(--error-bg); }
     .hidden { display: none; }
+    .setup-dialog { width: min(1040px, calc(100% - 32px)); height: min(760px, calc(100% - 32px)); max-width: none; max-height: none; overflow: hidden; padding: 0; color: var(--text); background: var(--page-bg); border: 1px solid var(--border-strong); border-radius: 20px; box-shadow: 0 24px 80px rgb(0 0 0 / 36%); }
+    .setup-dialog::backdrop { background: rgb(7 10 16 / 68%); backdrop-filter: blur(5px); }
+    .setup-dialog-header { height: 82px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 24px; background: var(--surface); border-bottom: 1px solid var(--border); }
+    .setup-brand { display: flex; align-items: center; gap: 13px; min-width: 0; }
+    .setup-brand-mark { width: 42px; height: 42px; flex: 0 0 42px; display: grid; place-items: center; border-radius: 14px; color: white; font-size: 17px; font-weight: 750; background: linear-gradient(140deg, #7774f5, #4c7df0); box-shadow: 0 6px 16px rgb(91 105 232 / 25%); }
+    .setup-dialog-header h2 { margin: 0; font-size: 18px; letter-spacing: -.2px; }
+    .setup-dialog-header p { overflow: hidden; margin: 4px 0 0; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+    .setup-close { width: 36px; height: 36px; display: grid; place-items: center; padding: 0; border-radius: 10px; color: var(--muted); font-size: 20px; }
+    .setup-layout { height: calc(100% - 82px); display: grid; grid-template-columns: 252px minmax(0, 1fr); min-height: 0; }
+    .setup-sidebar { display: flex; flex-direction: column; min-height: 0; padding: 20px 14px 16px; background: var(--surface); border-right: 1px solid var(--border); }
+    .setup-sidebar-heading { display: flex; align-items: center; justify-content: space-between; padding: 0 9px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    .setup-count { border-radius: 999px; padding: 3px 7px; color: var(--selected-text); background: var(--selected-bg); font-size: 10px; letter-spacing: 0; }
+    .setup-dialog .setup-search { flex: 0 0 auto; width: 100%; min-width: 0; height: 36px; margin: 14px 0 12px; padding: 8px 11px !important; font-size: 12px; }
+    .setup-client-list { min-height: 0; overflow-y: auto; padding-right: 3px; }
+    .setup-client-group + .setup-client-group { margin-top: 14px; }
+    .setup-client-group-title { margin: 0 8px 6px; color: var(--muted); font-size: 11px; font-weight: 600; }
+    .setup-client-option { width: 100%; display: flex; align-items: center; gap: 9px; margin: 2px 0; padding: 8px 9px; text-align: left; border-color: transparent; background: transparent; color: var(--soft-text); font-size: 12px; }
+    .setup-client-option:hover { background: var(--surface-raised); }
+    .setup-client-option[aria-current="true"] { color: var(--selected-text); background: var(--selected-bg); border-color: color-mix(in srgb, var(--selected-border) 28%, transparent); font-weight: 650; }
+    .setup-client-icon { width: 25px; height: 25px; flex: 0 0 25px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-raised); color: var(--soft-text); font-size: 9px; font-weight: 750; }
+    .setup-client-option[aria-current="true"] .setup-client-icon { border-color: var(--selected-border); color: var(--selected-text); background: var(--surface); }
+    .setup-client-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .setup-content { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 0; background: var(--page-bg); }
+    .setup-content-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 24px 30px 28px; }
+    .setup-client-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+    .setup-client-heading h3 { margin: 0; font-size: 21px; letter-spacing: -.35px; }
+    .setup-client-heading p { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .setup-protocol-badge { flex: 0 0 auto; border: 1px solid var(--selected-border); border-radius: 999px; padding: 6px 10px; color: var(--selected-text); background: var(--selected-bg); font-size: 11px; }
+    .setup-step-row { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; color: var(--muted); font-size: 11px; }
+    .setup-step { display: flex; align-items: center; gap: 6px; }
+    .setup-step-number { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; background: var(--selected-bg); color: var(--selected-text); font-size: 10px; font-weight: 700; }
+    .setup-step-line { width: 28px; height: 1px; background: var(--border-strong); }
+    .setup-section { margin-top: 16px; padding: 17px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+    .setup-section-title { display: flex; align-items: center; gap: 9px; margin: 0 0 13px; font-size: 13px; font-weight: 700; }
+    .setup-section-index { width: 23px; height: 23px; display: grid; place-items: center; border-radius: 8px; color: var(--selected-text); background: var(--selected-bg); font-size: 11px; }
+    .setup-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .setup-field { min-width: 0; }
+    .setup-field.full { grid-column: 1 / -1; }
+    .setup-dialog .setup-field label { display: block; margin: 0 0 6px; color: var(--soft-text); font-size: 11px; font-weight: 650; }
+    .setup-dialog .setup-field input { width: 100%; min-width: 0; padding: 10px 11px; border: 1px solid var(--border-strong); border-radius: 9px; color: var(--text); background: var(--surface-raised); font-size: 12px; }
+    .setup-dialog input[readonly] { color: var(--muted); background: var(--surface-inset); }
+    .setup-help { margin: 6px 0 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
+    .setup-dialog .setup-note { padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .setup-dialog .setup-note p { margin: 6px 0 0; }
+    .setup-guide-link { display: inline-flex; align-items: center; gap: 6px; margin: 12px 2px 0; color: var(--link); font-size: 12px; font-weight: 650; text-decoration: none; }
+    .setup-guide-link:hover { text-decoration: underline; }
+    .setup-dialog .setup-skill-tools { margin-top: 16px; border-color: var(--selected-border); background: var(--selected-bg); }
+    .setup-skill-tools strong { color: var(--text); font-size: 13px; }
+    .setup-skill-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .setup-skill-actions button { margin: 0; }
+    .setup-dialog .setup-status { display: block; min-height: 18px; margin-top: 5px; color: var(--muted); font-size: 11px; }
+    .setup-preview { margin-top: 16px; padding: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+    .setup-preview summary { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; cursor: pointer; color: var(--soft-text); font-size: 12px; font-weight: 650; }
+    .setup-preview summary::marker { color: var(--selected-text); }
+    .setup-preview-content { padding: 0 16px 15px; }
+    .setup-dialog .setup-preview textarea { width: 100%; min-height: 150px; margin: 0; padding: 12px; resize: vertical; font: 11px/1.55 ui-monospace, Consolas, monospace; }
+    .setup-dialog .setup-actions { display: flex; align-items: center; gap: 10px; }
+    .setup-dialog .setup-actions button { margin: 0; }
+    .setup-footer { min-height: 70px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 30px; border-top: 1px solid var(--border); background: var(--surface); }
+    .setup-footer-copy { min-width: 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .setup-footer-copy strong { display: block; margin-bottom: 2px; color: var(--soft-text); font-size: 12px; }
+    .setup-footer-actions { display: flex; align-items: center; gap: 10px; }
+    .setup-footer-actions button { margin: 0; white-space: nowrap; }
+    .setup-footer-actions .setup-status { min-width: 130px; margin: 0; text-align: right; }
+    .setup-dialog .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    @media (max-width: 760px) {
+      .setup-dialog { width: calc(100% - 16px); height: calc(100% - 16px); border-radius: 16px; }
+      .setup-layout { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+      .setup-sidebar { padding: 10px 14px; border-right: 0; border-bottom: 1px solid var(--border); }
+      .setup-sidebar-heading, .setup-search, .setup-client-group-title { display: none; }
+      .setup-client-list { display: flex; gap: 7px; overflow: auto; padding: 0 0 2px; }
+      .setup-client-group { display: contents; }
+      .setup-client-option { width: auto; flex: 0 0 auto; margin: 0; padding: 6px 9px; border-color: var(--border); background: var(--surface-raised); }
+      .setup-client-name { max-width: 140px; }
+      .setup-content-scroll { padding: 18px 16px 22px; }
+      .setup-footer { padding: 10px 16px; }
+    }
+    @media (max-width: 480px) {
+      .setup-dialog-header { height: 70px; padding: 12px 15px; }
+      .setup-layout { height: calc(100% - 70px); }
+      .setup-brand-mark { width: 36px; height: 36px; flex-basis: 36px; }
+      .setup-client-heading { display: block; }
+      .setup-protocol-badge { display: inline-block; margin-top: 10px; }
+      .setup-fields { grid-template-columns: 1fr; }
+      .setup-field.full { grid-column: auto; }
+      .setup-footer-copy { display: none; }
+      .setup-footer-actions { width: 100%; justify-content: space-between; }
+    }
     footer { margin-top: 16px; color: var(--footer); font-size: 12px; }
     a { color: var(--link); }
     @media (max-width: 700px) {
@@ -214,7 +304,7 @@
     <div class="wrap top">
       <div>
         <h1>Kilo Free Gateway</h1>
-        <p class="sub">本机模型目录与手动测试</p>
+        <p class="sub">本机模型目录、测试与客户端接入</p>
       </div>
       <div class="header-tools">
         <button id="theme-toggle" class="icon-button" type="button" aria-label="切换到亮色主题" title="切换到亮色主题">
@@ -240,7 +330,7 @@
     <div class="settings selection-toolbar">
       <span id="selection-status" class="muted">点击卡片逐个选中 / 取消，也可按住鼠标左键拖动方框选中；高级：Shift 点击范围多选，Ctrl+A 全选列表。</span>
       <div class="selection-actions">
-        <button id="top-test-button" class="primary" aria-label="测试已选模型" disabled>全部测试</button>
+        <button id="top-test-button" class="primary" aria-label="测试已选模型" disabled>测试</button>
         <button id="top-stop-button" aria-label="停止批量测试" hidden>停止测试</button>
         <button id="clear-selection" aria-label="清空测试选择" disabled>清空选择</button>
       </div>
@@ -259,13 +349,120 @@
       <footer>所有批量测试，都会使用上面文本框里的内容作为测试提问，可以自行修改。提示词会发送给对应上游并可能消耗额度；响应仅显示在本地页面，网关日志不记录提示词或响应内容。</footer>
     </section>
   </main>
+  <dialog id="setup-dialog" class="setup-dialog" aria-labelledby="setup-title">
+    <div class="setup-dialog-header">
+      <div class="setup-brand">
+        <div class="setup-brand-mark" aria-hidden="true">AI</div>
+        <div>
+          <h2 id="setup-title">配置模型接入</h2>
+          <p id="setup-model-label"></p>
+        </div>
+      </div>
+      <button id="close-setup" class="setup-close" type="button" aria-label="关闭接入配置">×</button>
+    </div>
+    <div class="setup-layout">
+      <aside class="setup-sidebar" aria-label="选择客户端">
+        <div class="setup-sidebar-heading">选择客户端 <span class="setup-count">18 种</span></div>
+        <input id="setup-client-search" class="setup-search" type="search" placeholder="搜索客户端…" aria-label="搜索客户端">
+        <nav id="setup-client-list" class="setup-client-list" aria-label="客户端列表"></nav>
+        <select id="setup-client" class="visually-hidden" tabindex="-1" aria-hidden="true">
+          <option value="claude-code">Claude Code（Anthropic Messages）</option>
+          <option value="cline">Cline（OpenAI 兼容表单）</option>
+          <option value="continue-json">Continue（config.json）</option>
+          <option value="chatbox">Chatbox（自定义供应商）</option>
+          <option value="cherry-studio">Cherry Studio（自定义供应商）</option>
+          <option value="workbuddy">WorkBuddy（自定义模型）</option>
+          <option value="trae">Trae（自定义模型）</option>
+          <option value="deepseek-harness">DeepSeek Harness</option>
+          <option value="cc-switch-claude">CC-Switch（Claude Code）</option>
+          <option value="opencode">OpenCode</option>
+          <option value="workswarm">WorkSwarm</option>
+          <option value="loomy">Loomy</option>
+          <option value="hermes-agent">Hermes Agent</option>
+          <option value="openfic">OpenFIC</option>
+          <option value="github-copilot-byok">GitHub Copilot（自带密钥）</option>
+          <option value="vscode-copilot-chat">VS Code GitHub Copilot Chat</option>
+          <option value="qclaw">QClaw</option>
+          <option value="cc-switch-codex">CC-Switch（Codex）</option>
+          <option value="openai-compatible">其他 OpenAI 兼容客户端</option>
+        </select>
+      </aside>
+      <main class="setup-content">
+        <div id="setup-content-scroll" class="setup-content-scroll">
+          <div class="setup-step-row" aria-label="配置步骤">
+            <span class="setup-step"><span class="setup-step-number">1</span>选择客户端</span>
+            <span class="setup-step-line"></span>
+            <span class="setup-step"><span class="setup-step-number">2</span>填写连接</span>
+            <span class="setup-step-line"></span>
+            <span class="setup-step"><span class="setup-step-number">3</span>复制并应用</span>
+          </div>
+          <div class="setup-client-heading">
+            <div>
+              <h3 id="setup-client-title">Claude Code</h3>
+              <p id="setup-client-description"></p>
+            </div>
+            <span id="setup-protocol-badge" class="setup-protocol-badge"></span>
+          </div>
+          <section class="setup-section">
+            <h4 class="setup-section-title"><span class="setup-section-index">1</span>连接信息</h4>
+            <div class="setup-fields">
+              <div class="setup-field full">
+                <label for="setup-base-url">接口地址（Base URL）</label>
+                <input id="setup-base-url" type="text" readonly spellcheck="false">
+                <p class="setup-help">根据所选客户端的接口协议自动生成</p>
+              </div>
+              <div class="setup-field full">
+                <label for="setup-model-id">模型名称（Model ID）</label>
+                <input id="setup-model-id" type="text" readonly>
+                <p class="setup-help">已从当前模型卡片带入</p>
+              </div>
+              <div class="setup-field full">
+                <label for="setup-api-key">API Key / 本地访问口令</label>
+                <input id="setup-api-key" type="password" autocomplete="off" spellcheck="false">
+                <p class="setup-help">若未设置 LOCAL_KEY 可使用 dummy；预览默认隐藏真实口令。</p>
+              </div>
+            </div>
+          </section>
+          <div id="setup-instructions" class="setup-note" role="status"></div>
+          <a class="setup-guide-link" href="/docs/client-guides/third-party-api-setup.html" target="_blank" rel="noopener noreferrer">
+            查看 18 款客户端完整图文教程 <span aria-hidden="true">↗</span>
+          </a>
+          <div id="workbuddy-skill-tools" class="setup-note setup-skill-tools hidden">
+            <strong>让 WorkBuddy 帮你配置</strong>
+            <p>复制指令后，直接粘贴到 WorkBuddy 对话框；或者下载 ZIP，再上传到 WorkBuddy 的 Skill 入口。</p>
+            <div class="setup-skill-actions">
+              <button id="copy-workbuddy-skill" type="button">复制给 WorkBuddy</button>
+              <button id="download-workbuddy-skill" type="button">下载 Skill ZIP</button>
+            </div>
+            <span id="workbuddy-skill-status" class="setup-status" role="status" aria-live="polite"></span>
+          </div>
+          <details class="setup-preview">
+            <summary><span>配置预览</span><span>复制前可检查配置内容</span></summary>
+            <div class="setup-preview-content">
+              <textarea id="setup-preview" readonly spellcheck="false" aria-label="配置预览"></textarea>
+            </div>
+          </details>
+        </div>
+        <div class="setup-footer">
+          <div class="setup-footer-copy">
+            <strong>安全提醒</strong>
+            配置留在本机；复制操作可能包含口令，请勿分享。请求会发送至模型上游服务商。
+          </div>
+          <div class="setup-footer-actions">
+            <span id="setup-status" class="setup-status" role="status" aria-live="polite"></span>
+            <button id="setup-copy" class="primary" type="button">复制配置</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </dialog>
   <aside id="selection-dock" class="selection-dock" aria-label="批量测试操作">
     <div class="selection-dock-inner">
       <div class="selection-dock-copy">
         <span id="dock-selection-count" class="selection-dock-count">已选择 0 个模型</span>
         <span class="selection-dock-note">将使用下方【问答测试】的提示词执行测试</span>
       </div>
-      <button id="dock-test-button" class="primary" aria-label="开始批量测试" disabled>开始批量测试</button>
+      <button id="dock-test-button" class="primary" aria-label="开始测试" disabled>开始测试</button>
       <button id="dock-stop-button" aria-label="停止批量测试" hidden>停止测试</button>
       <button id="dock-clear-button" aria-label="清空测试选择" disabled>清空选择</button>
     </div>
@@ -437,7 +634,7 @@
       document.body.classList.toggle('has-selection-dock', count > 0);
       $('#dock-selection-count').textContent = `已选择 ${count} 个模型`;
 
-      for (const [id, label] of [['top-test-button', '全部测试'], ['dock-test-button', '开始批量测试']]) {
+      for (const [id, label] of [['top-test-button', '测试'], ['dock-test-button', '开始测试']]) {
         const button = $(`#${id}`);
         button.disabled = state.testing || count === 0;
         button.textContent = state.testing ? '测试中…' : label;
@@ -650,6 +847,253 @@
       card.append(item);
     }
 
+    async function copyText(text) {
+      if (navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(text);
+          return;
+        } catch {
+          // Fall back for browsers that expose the Clipboard API but deny permission.
+        }
+      }
+
+      const input = document.createElement('textarea');
+      input.value = text;
+      input.setAttribute('readonly', '');
+      input.style.position = 'fixed';
+      input.style.opacity = '0';
+      document.body.append(input);
+      input.select();
+      const copied = document.execCommand('copy');
+      input.remove();
+      if (!copied) throw new Error('浏览器不允许访问剪贴板');
+    }
+
+    function setupBaseUrl(client) {
+      const base = window.location.origin.replace(/\/+$/, '');
+      return ['claude-code', 'cc-switch-claude'].includes(client) ? base : `${base}/v1`;
+    }
+
+    const SETUP_CLIENT_GROUPS = {
+      '聊天与办公': ['chatbox', 'cherry-studio', 'workbuddy', 'loomy', 'workswarm', 'qclaw'],
+      '编程助手': ['cline', 'continue-json', 'trae', 'deepseek-harness', 'opencode', 'hermes-agent', 'openfic', 'github-copilot-byok', 'vscode-copilot-chat', 'claude-code'],
+      '配置切换器': ['cc-switch-claude', 'cc-switch-codex'],
+      '其他': ['openai-compatible'],
+    };
+    const SETUP_CLIENT_META = {
+      'claude-code': { icon: 'CC', description: '通过 Anthropic Messages 接口连接 Claude Code。', protocol: 'Anthropic' },
+      cline: { icon: 'CL', description: '在 Cline 的自定义提供方表单中填写 OpenAI 兼容接口。', protocol: 'OpenAI 兼容' },
+      'continue-json': { icon: 'CO', description: '将生成的模型条目合并到 Continue 配置文件。', protocol: '配置文件' },
+      chatbox: { icon: 'CB', description: '在 Chatbox 添加自定义供应商并选择模型。', protocol: 'OpenAI 兼容' },
+      'cherry-studio': { icon: 'CS', description: '在 Cherry Studio 添加供应商并获取或选择模型。', protocol: 'OpenAI 兼容' },
+      workbuddy: { icon: 'WB', description: '在 WorkBuddy 的智能体模型管理中添加自定义模型。', protocol: 'OpenAI 兼容' },
+      trae: { icon: 'TR', description: '登录 Trae 后添加自定义模型，保存后在对话中选择。', protocol: 'OpenAI 兼容' },
+      'deepseek-harness': { icon: 'DH', description: '添加自定义模型 API，并从接口获取可用模型。', protocol: 'OpenAI 兼容' },
+      'cc-switch-claude': { icon: 'CC', description: '通过 CC-Switch 管理 Claude Code 的自定义供应商。', protocol: 'Anthropic' },
+      opencode: { icon: 'OC', description: '添加自定义提供商，再将模型加入 OpenCode。', protocol: 'OpenAI 兼容' },
+      workswarm: { icon: 'WS', description: '在 WorkSwarm 模型配置中添加 OpenAI 供应商。', protocol: 'OpenAI 兼容' },
+      loomy: { icon: 'LO', description: '添加服务商，获取模型后应用到 Loomy。', protocol: 'OpenAI 兼容' },
+      'hermes-agent': { icon: 'HA', description: '添加自定义端点，再从模型列表中选择。', protocol: 'OpenAI 兼容' },
+      openfic: { icon: 'OF', description: '先创建连接，再添加语言模型。', protocol: 'OpenAI 兼容' },
+      'github-copilot-byok': { icon: 'GH', description: '使用 GitHub Copilot 的自带密钥功能添加模型。', protocol: 'Chat Completions' },
+      'vscode-copilot-chat': { icon: 'VS', description: '从 VS Code Copilot Chat 的模型管理中添加自定义端点。', protocol: 'Chat Completions' },
+      qclaw: { icon: 'Q', description: '在 QClaw 的自定义大模型页面填写连接信息。', protocol: 'OpenAI 兼容' },
+      'cc-switch-codex': { icon: 'CX', description: '通过 CC-Switch 配置并路由到 Codex。', protocol: 'Codex' },
+      'openai-compatible': { icon: 'API', description: '用于支持 OpenAI 兼容接口的其他客户端。', protocol: 'OpenAI 兼容' },
+    };
+
+    function renderSetupClients() {
+      const list = $('#setup-client-list');
+      const selected = $('#setup-client').value;
+      const query = $('#setup-client-search').value.trim().toLowerCase();
+      list.replaceChildren();
+      for (const [group, clientIds] of Object.entries(SETUP_CLIENT_GROUPS)) {
+        const options = clientIds
+          .map((id) => $('#setup-client').querySelector(`option[value="${id}"]`))
+          .filter((option) => option && option.textContent.toLowerCase().includes(query));
+        if (!options.length) continue;
+        const section = document.createElement('section');
+        section.className = 'setup-client-group';
+        const heading = document.createElement('h4');
+        heading.className = 'setup-client-group-title';
+        heading.textContent = group;
+        section.append(heading);
+        for (const option of options) {
+          const meta = SETUP_CLIENT_META[option.value];
+          const button = document.createElement('button');
+          button.className = 'setup-client-option';
+          button.type = 'button';
+          button.dataset.client = option.value;
+          button.setAttribute('aria-current', String(option.value === selected));
+          button.setAttribute('aria-label', option.textContent);
+          const icon = document.createElement('span');
+          icon.className = 'setup-client-icon';
+          icon.setAttribute('aria-hidden', 'true');
+          icon.textContent = meta.icon;
+          const name = document.createElement('span');
+          name.className = 'setup-client-name';
+          name.textContent = option.textContent;
+          button.append(icon, name);
+          button.addEventListener('click', () => {
+            $('#setup-client').value = option.value;
+            $('#setup-client').dispatchEvent(new Event('change'));
+          });
+          section.append(button);
+        }
+        list.append(section);
+      }
+      if (!list.childElementCount) {
+        const empty = document.createElement('p');
+        empty.className = 'setup-client-group-title';
+        empty.textContent = '没有匹配的客户端';
+        list.append(empty);
+      }
+      list.querySelector('.setup-client-option[aria-current="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+
+    function shellQuote(value, shell) {
+      if (shell === 'powershell') return `'${value.replace(/'/g, "''")}'`;
+      return `'${value.replace(/'/g, "'\\''")}'`;
+    }
+
+    function setupConfiguration({ maskKey = false } = {}) {
+      const client = $('#setup-client').value;
+      const baseUrl = $('#setup-base-url').value.trim();
+      const apiKey = $('#setup-api-key').value.trim() || 'dummy';
+      const model = $('#setup-model-id').value;
+      const visibleKey = maskKey && apiKey !== 'dummy' ? '••••••••' : apiKey;
+      if (client === 'claude-code') {
+        return [
+          '# 在 PowerShell 当前终端中运行，然后启动 Claude Code',
+          `$env:ANTHROPIC_BASE_URL = ${shellQuote(baseUrl, 'powershell')}`,
+          `$env:ANTHROPIC_AUTH_TOKEN = ${shellQuote(visibleKey, 'powershell')}`,
+          `$env:ANTHROPIC_MODEL = ${shellQuote(model, 'powershell')}`,
+          'claude',
+          '',
+          '# macOS / Linux（bash 或 zsh）',
+          `export ANTHROPIC_BASE_URL=${shellQuote(baseUrl, 'shell')}`,
+          `export ANTHROPIC_AUTH_TOKEN=${shellQuote(visibleKey, 'shell')}`,
+          `export ANTHROPIC_MODEL=${shellQuote(model, 'shell')}`,
+          'claude',
+        ].join('\n');
+      }
+      if (client === 'continue-json') {
+        return JSON.stringify({
+          models: [{
+            title: model,
+            provider: 'openai',
+            model,
+            apiKey: visibleKey,
+            apiBase: baseUrl,
+          }],
+        }, null, 2);
+      }
+      const fieldLines = [
+        `Base URL：${baseUrl}`,
+        `API Key：${visibleKey}`,
+        `Model ID：${model}`,
+      ];
+      if (client === 'chatbox') {
+        return ['供应商类型：自定义 OpenAI 兼容', '供应商名称：easyAI 本地网关', ...fieldLines].join('\n');
+      }
+      if (client === 'cherry-studio') {
+        return ['供应商名称：easyAI 本地网关', ...fieldLines, '模型列表：填写 Model ID 或从服务端获取'].join('\n');
+      }
+      if (client === 'workbuddy') {
+        return ['模型提供方：自定义模型（OpenAI 兼容）', ...fieldLines].join('\n');
+      }
+      if (client === 'trae') {
+        return ['模型类型：自定义模型', '接口格式：OpenAI 兼容', `请求地址：${baseUrl}`, `模型 ID：${model}`, `API Key：${visibleKey}`].join('\n');
+      }
+      if (client === 'deepseek-harness') {
+        return ['提供商类型：自定义模型 API', '协议：OpenAI 兼容', `接口地址：${baseUrl}`, `API Key：${visibleKey}`, `模型：从 API 获取后选择 ${model}`].join('\n');
+      }
+      if (client === 'cc-switch-claude') {
+        return ['配置类型：自定义配置', '供应商名称：easyAI 本地网关', `请求地址：${baseUrl}`, `API Key：${visibleKey}`, `Claude 模型 ID：${model}`, '高级选项：使用 Anthropic Messages 认证与路由格式；按 CC-Switch 界面对应字段填写。'].join('\n');
+      }
+      if (client === 'opencode') {
+        return ['自定义提供商 ID：easyai-local', '提供商名称：easyAI 本地网关', `Base URL：${baseUrl}`, `API Key：${visibleKey}`, `添加模型 ID：${model}`].join('\n');
+      }
+      if (client === 'workswarm') {
+        return ['供应商：OpenAI', `模型名：${model}`, `别名：${model}`, `接口地址：${baseUrl}`, `API Key：${visibleKey}`].join('\n');
+      }
+      if (client === 'loomy') {
+        return ['服务商 ID：easyai-local', '服务商名称：easyAI 本地网关', `接口地址：${baseUrl}`, `API Key：${visibleKey}`, `从 API 获取模型后选择：${model}`].join('\n');
+      }
+      if (client === 'hermes-agent') {
+        return ['提供方：自定义端点', `接口地址：${baseUrl}`, `API Key：${visibleKey}`, `配置后选择模型：${model}`].join('\n');
+      }
+      if (client === 'openfic') {
+        return ['连接类型：OpenAI 兼容', `服务 URL：${baseUrl}`, `API Key：${visibleKey}`, '模型类型：语言模型', `模型 ID：${model}`].join('\n');
+      }
+      if (client === 'github-copilot-byok') {
+        return ['模式：使用自己的 API 密钥', '传输格式：Chat Completions', `接口地址：${baseUrl}`, `API Key：${visibleKey}`, `模型 ID：${model}`].join('\n');
+      }
+      if (client === 'vscode-copilot-chat') {
+        return [`名称：${model}`, `模型 ID：${model}`, `API Key：${visibleKey}`, `接口地址：${baseUrl}`, '传输格式：按客户端默认值；如需选择，使用 Chat Completions。'].join('\n');
+      }
+      if (client === 'qclaw') {
+        return ['类型：自定义大模型', `Base URL：${baseUrl}`, `模型名称：${model}`, `API Key：${visibleKey}`].join('\n');
+      }
+      if (client === 'cc-switch-codex') {
+        return ['配置类型：自定义配置', '供应商名称：easyAI 本地网关', `接口地址：${baseUrl}`, `API Key：${visibleKey}`, `添加模型 ID：${model}`, '高级选项：上下文长度与推理强度按需设置（可先保留默认值）。', '应用：点击「路由到此」，再重启 Codex。'].join('\n');
+      }
+      if (client === 'cline') {
+        return ['API 提供方：OpenAI Compatible', ...fieldLines].join('\n');
+      }
+      return [
+        'API 提供方：OpenAI Compatible',
+        ...fieldLines,
+      ].join('\n');
+    }
+
+    function updateSetupDialog() {
+      const client = $('#setup-client').value;
+      const option = $('#setup-client').selectedOptions[0];
+      const meta = SETUP_CLIENT_META[client] || SETUP_CLIENT_META['openai-compatible'];
+      $('#setup-base-url').value ||= setupBaseUrl(client);
+      const instructions = {
+        'claude-code': '在 Claude Code 所在的终端运行预览中的命令；环境变量只对当前终端会话生效。Base URL 不带 /v1，Claude Code 会请求 Anthropic Messages 接口。',
+        cline: '打开 Cline 的 API 配置，选择 OpenAI Compatible，将下方 Base URL、API Key 和 Model ID 填入对应字段。Base URL 带 /v1。',
+        'continue-json': '将下方 JSON 中的 models 条目合并到 Continue 的 config.json；不要覆盖已有其他模型。保存后在 Continue 中选择该模型。字段名请按当前 Continue 版本核对。',
+        chatbox: '在 Chatbox 的模型提供方中添加自定义供应商，选择 OpenAI 兼容类型并填写下方字段；随后获取模型列表或手动添加 Model ID，再测试连接。',
+        'cherry-studio': '在 Cherry Studio 设置中添加自定义供应商，填写 Base URL 和 API Key，获取或手动添加模型 ID，启用供应商并检测连接。',
+        workbuddy: '在 WorkBuddy 的智能体设置 / 模型管理中添加自定义模型，选择自定义供应商，填写下方 Base URL、API Key 和模型名称后保存。教程标注仅支持 OpenAI 兼容接口；思考模式和工具调用等可选项按模型能力自行决定。127.0.0.1 仅在 WorkBuddy 请求从本机发出时可用。',
+        trae: '先登录 Trae，进入「设置 → 模型 → 添加模型 → 自定义模型」。选择与网关相符的兼容格式，填写请求地址、模型 ID 和 API Key，保存后在对话中选择模型。请求地址不要在末尾多加斜杠。',
+        'deepseek-harness': '进入「设置 → 模型 → 添加模型提供商」，选择自定义模型 API，使用 OpenAI 兼容协议并填写地址与 API Key。点击获取可用模型，然后选择当前模型。',
+        'cc-switch-claude': '在 CC-Switch 中添加供应商并选择「自定义配置」，填写名称、请求地址和 API Key；打开高级选项，按下方摘要设置认证方式与路由格式。应用后在 Claude Code 终端发送一条简单消息验证。',
+        opencode: '在 OpenCode 中选择「自定义提供商」，填写提供商 ID、名称、Base URL 和 API Key，再添加模型 ID。使用时在 OpenCode 中选择刚添加的模型。',
+        workswarm: '进入「更多 → 模型配置」，供应商选 OpenAI。模型名和别名可使用相同值，填写接口地址和 API Key 后保存，再回到界面选择模型。',
+        loomy: '进入「模型 → 服务商配置 → 添加服务商」，先填写 ID、名称和接口地址，再填写 API Key 并从 API 获取模型。选择该模型后点击应用。',
+        'hermes-agent': '打开提供方设置，选择「自定义端点」，填写接口地址和 API Key 并保存；再进入模型列表选择对应模型。',
+        openfic: '进入「连接 / 服务提供商 → 新建连接」，选择 OpenAI 兼容协议，填写服务 URL 和 API Key 并保存。之后新建语言模型，若列表没有模型就手动输入 Model ID。',
+        'github-copilot-byok': '在 GitHub Copilot 的模型管理中选择「使用自己的 API 密钥」，传输格式选 Chat Completions，填写接口地址和 API Key，再添加 Model ID。此功能需要当前账号和客户端支持 BYOK。',
+        'vscode-copilot-chat': '在 VS Code Copilot Chat 面板打开「管理模型 → 添加模型 / 自定义端点」，依次填写名称、Model ID、API Key 和接口地址；其他字段先保留默认值，保存后切换到该模型。',
+        qclaw: '打开 QClaw 的「自定义大模型」，填写 Base URL、模型名称和 API Key，保存后回到对话选择该自定义模型。',
+        'cc-switch-codex': '在 CC-Switch 选择「自定义配置」，填写地址与 API Key；添加模型并按需设置上下文长度、推理强度。点击「路由到此」，然后重启 Codex 使配置生效。',
+        'openai-compatible': '在客户端的自定义提供方 / 模型设置中选择 OpenAI Compatible，并按下方字段填写。Base URL 需要带 /v1；具体字段名称以客户端版本为准。',
+      };
+      $('#setup-client-title').textContent = option?.textContent || '其他 OpenAI 兼容客户端';
+      $('#setup-client-description').textContent = meta.description;
+      $('#setup-protocol-badge').textContent = meta.protocol;
+      $('#setup-instructions').textContent = instructions[client] || instructions['openai-compatible'];
+      $('#workbuddy-skill-tools').classList.toggle('hidden', client !== 'workbuddy');
+      $('#workbuddy-skill-status').textContent = '';
+      $('#setup-preview').value = setupConfiguration({ maskKey: true });
+      $('#setup-status').textContent = '';
+      renderSetupClients();
+    }
+
+    function openSetupDialog(model) {
+      $('#setup-model-label').textContent = `当前模型：${model.id}`;
+      $('#setup-model-id').value = model.id;
+      $('#setup-client').value = 'claude-code';
+      $('#setup-base-url').value = setupBaseUrl('claude-code');
+      $('#setup-api-key').value = state.key || 'dummy';
+      updateSetupDialog();
+      $('#setup-dialog').showModal();
+    }
+
     function renderCatalog() {
       const list = visibleModels();
       const root = $('#catalog');
@@ -691,9 +1135,33 @@
         check.className = 'card-check';
         check.setAttribute('aria-hidden', 'true');
         heading.append(check);
+        const titleGroup = document.createElement('div');
+        titleGroup.className = 'card-title-group';
         const title = document.createElement('h2');
         title.textContent = model.id;
-        heading.append(title);
+        titleGroup.append(title);
+        const copyModelButton = document.createElement('button');
+        copyModelButton.className = 'copy-model-button';
+        copyModelButton.type = 'button';
+        copyModelButton.textContent = '复制';
+        copyModelButton.setAttribute('aria-label', `复制模型名 ${model.id}`);
+        copyModelButton.addEventListener('click', async (event) => {
+          event.stopPropagation();
+          try {
+            await copyText(model.id);
+            copyModelButton.textContent = '已复制';
+            setTimeout(() => { copyModelButton.textContent = '复制'; }, 1200);
+          } catch (error) {
+            copyModelButton.textContent = '复制失败';
+            copyModelButton.title = `无法访问剪贴板：${error.message || '浏览器不允许访问剪贴板'}`;
+            setTimeout(() => {
+              copyModelButton.textContent = '复制';
+              copyModelButton.removeAttribute('title');
+            }, 2000);
+          }
+        });
+        titleGroup.append(copyModelButton);
+        heading.append(titleGroup);
         card.append(heading);
         if (model.name && model.name !== model.id) {
           const name = document.createElement('p');
@@ -779,7 +1247,12 @@
         testButton.textContent = state.testResults.get(model.id)?.status === 'running' ? '测试中…' : '连通测试';
         testButton.disabled = state.testing;
         testButton.addEventListener('click', () => runTests([model.id]));
-        card.append(testButton);
+        const configureButton = document.createElement('button');
+        configureButton.className = 'configure-model-button';
+        configureButton.textContent = '接入客户端';
+        configureButton.setAttribute('aria-label', `将 ${model.id} 接入客户端`);
+        configureButton.addEventListener('click', () => openSetupDialog(model));
+        card.append(testButton, configureButton);
         appendCardResult(card, state.testResults.get(model.id));
         root.append(card);
       });
@@ -824,6 +1297,64 @@
     $('#refresh').addEventListener('click', loadCatalog);
     $('#search').addEventListener('input', renderCatalog);
     $('#free-only').addEventListener('change', renderCatalog);
+    $('#close-setup').addEventListener('click', () => $('#setup-dialog').close());
+    $('#setup-client').addEventListener('change', () => {
+      $('#setup-base-url').value = setupBaseUrl($('#setup-client').value);
+      updateSetupDialog();
+    });
+    $('#setup-client-search').addEventListener('input', renderSetupClients);
+    $('#setup-api-key').addEventListener('input', updateSetupDialog);
+    $('#copy-workbuddy-skill').addEventListener('click', async () => {
+      const status = $('#workbuddy-skill-status');
+      try {
+        const response = await fetch('/api/workbuddy-skill', { headers: apiHeaders() });
+        if (!response.ok) throw new Error(`下载指令失败（HTTP ${response.status}）`);
+        const skill = await response.text();
+        const prompt = skill.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '').trim();
+        if (!prompt) throw new Error('Skill 内容为空');
+        const keyInstruction = state.key
+          ? '我已设置本机访问口令；请不要在聊天中索取或输出口令，让我直接在 WorkBuddy 的 API Key 密码框中输入。'
+          : '本机未设置访问口令，API Key 使用 dummy。';
+        const request = [
+          '请按以下说明帮我配置 WorkBuddy。',
+          `本次选择的模型 ID：${$('#setup-model-id').value}`,
+          `Base URL：${setupBaseUrl('workbuddy')}`,
+          keyInstruction,
+          '',
+          prompt,
+        ].join('\n');
+        await copyText(request);
+        status.textContent = '已复制。现在打开 WorkBuddy 对话框并粘贴即可；其中不包含你的 API Key。';
+      } catch (error) {
+        status.textContent = error.message || '复制失败，请重试。';
+      }
+    });
+    $('#download-workbuddy-skill').addEventListener('click', async () => {
+      const status = $('#workbuddy-skill-status');
+      try {
+        const response = await fetch('/api/workbuddy-skill.zip', { headers: apiHeaders() });
+        if (!response.ok) throw new Error(`下载 Skill 失败（HTTP ${response.status}）`);
+        const archive = await response.blob();
+        const url = URL.createObjectURL(archive);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'configure-workbuddy-easyai-model.zip';
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        status.textContent = 'ZIP 已下载。可在 WorkBuddy 的 Skill 入口上传这个文件。';
+      } catch (error) {
+        status.textContent = error.message || '下载失败，请重试。';
+      }
+    });
+    $('#setup-copy').addEventListener('click', async () => {
+      const status = $('#setup-status');
+      try {
+        await navigator.clipboard.writeText(setupConfiguration());
+        status.textContent = '配置已复制。请粘贴到对应客户端；包含口令时注意不要分享。';
+      } catch (error) {
+        status.textContent = `复制失败：${error.message || '浏览器不允许访问剪贴板'}。请手动复制上方预览。`;
+      }
+    });
     function startSelectedTests() {
       const models = state.models.filter((model) => state.testSelection.has(model.id)).map((model) => model.id);
       return runTests(models);

@@ -18,6 +18,7 @@ const http = require('node:http');
 const https = require('node:https');
 const fs = require('node:fs');
 const pathModule = require('node:path');
+const zlib = require('node:zlib');
 
 const UPSTREAM_HOST = 'api.kilo.ai';
 const UPSTREAM_BASE = '/api/gateway';
@@ -25,6 +26,8 @@ const PORT = Number(process.env.PORT || 8899);
 const HOST = process.env.HOST || '127.0.0.1';
 const ROOT = __dirname;
 const CAPABILITIES_FILE = pathModule.join(ROOT, 'lib', 'model-capabilities.json');
+const CLIENT_GUIDE_FILE = pathModule.join(ROOT, 'docs', 'client-guides', 'third-party-api-setup.html');
+const WORKBUDDY_SKILL_DIR = pathModule.join(ROOT, '..', 'configure-workbuddy-easyai-model');
 // 本机网关可选口令：设置后客户端需带 Authorization: Bearer <key>。
 const LOCAL_KEY = process.env.LOCAL_KEY || '';
 
@@ -132,6 +135,50 @@ function json(res, status, obj, headers = {}) {
   res.end(s);
 }
 
+function zipSingleFile(name, content) {
+  const filename = Buffer.from(name, 'utf8');
+  const data = Buffer.isBuffer(content) ? content : Buffer.from(content);
+  const compressed = zlib.deflateRawSync(data);
+  let crc = 0xffffffff;
+  for (const byte of data) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+  }
+  crc = (crc ^ 0xffffffff) >>> 0;
+
+  const localHeader = Buffer.alloc(30);
+  localHeader.writeUInt32LE(0x04034b50, 0);
+  localHeader.writeUInt16LE(20, 4);
+  localHeader.writeUInt16LE(0x0800, 6);
+  localHeader.writeUInt16LE(8, 8);
+  localHeader.writeUInt32LE(crc, 14);
+  localHeader.writeUInt32LE(compressed.length, 18);
+  localHeader.writeUInt32LE(data.length, 22);
+  localHeader.writeUInt16LE(filename.length, 26);
+
+  const centralHeader = Buffer.alloc(46);
+  centralHeader.writeUInt32LE(0x02014b50, 0);
+  centralHeader.writeUInt16LE(20, 4);
+  centralHeader.writeUInt16LE(20, 6);
+  centralHeader.writeUInt16LE(0x0800, 8);
+  centralHeader.writeUInt16LE(8, 10);
+  centralHeader.writeUInt32LE(crc, 16);
+  centralHeader.writeUInt32LE(compressed.length, 20);
+  centralHeader.writeUInt32LE(data.length, 24);
+  centralHeader.writeUInt16LE(filename.length, 28);
+  centralHeader.writeUInt32LE(0, 42);
+
+  const localRecord = Buffer.concat([localHeader, filename, compressed]);
+  const centralRecord = Buffer.concat([centralHeader, filename]);
+  const endRecord = Buffer.alloc(22);
+  endRecord.writeUInt32LE(0x06054b50, 0);
+  endRecord.writeUInt16LE(1, 8);
+  endRecord.writeUInt16LE(1, 10);
+  endRecord.writeUInt32LE(centralRecord.length, 12);
+  endRecord.writeUInt32LE(localRecord.length, 16);
+  return Buffer.concat([localRecord, centralRecord, endRecord]);
+}
+
 /** 本地口令校验（仅在设置了 LOCAL_KEY 时生效）。 */
 function authorized(req) {
   if (!LOCAL_KEY) return true;
@@ -149,12 +196,49 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
     return fs.createReadStream(pathModule.join(ROOT, 'public', 'index.html')).pipe(res);
   }
+  if (req.method === 'GET' && path === '/docs/client-guides/third-party-api-setup.html') {
+    try {
+      const guide = await fs.promises.readFile(CLIENT_GUIDE_FILE);
+      res.writeHead(200, {
+        'content-type': 'text/html; charset=utf-8',
+        'content-length': guide.length,
+        'cache-control': 'no-store',
+        'x-content-type-options': 'nosniff',
+      });
+      return res.end(guide);
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        return json(res, 404, { error: { type: 'not_found', message: 'Client setup guide is not installed' } });
+      }
+      throw error;
+    }
+  }
 
   if (!authorized(req)) {
     return json(res, 401, { error: { type: 'authentication_error', message: 'local gateway: bad or missing key' } });
   }
 
   try {
+    if (path === '/api/workbuddy-skill' && req.method === 'GET') {
+      const skill = await fs.promises.readFile(pathModule.join(WORKBUDDY_SKILL_DIR, 'SKILL.md'));
+      res.writeHead(200, {
+        'content-type': 'text/markdown; charset=utf-8',
+        'content-length': skill.length,
+        'cache-control': 'no-store',
+      });
+      return res.end(skill);
+    }
+    if (path === '/api/workbuddy-skill.zip' && req.method === 'GET') {
+      const skill = await fs.promises.readFile(pathModule.join(WORKBUDDY_SKILL_DIR, 'SKILL.md'));
+      const archive = zipSingleFile('configure-workbuddy-easyai-model/SKILL.md', skill);
+      res.writeHead(200, {
+        'content-type': 'application/zip',
+        'content-length': archive.length,
+        'content-disposition': 'attachment; filename="configure-workbuddy-easyai-model.zip"',
+        'cache-control': 'no-store',
+      });
+      return res.end(archive);
+    }
     if (path === '/api/catalog' && req.method === 'GET') {
       let up;
       try {

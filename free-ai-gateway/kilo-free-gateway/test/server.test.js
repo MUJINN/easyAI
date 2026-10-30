@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
 const net = require('node:net');
 const path = require('node:path');
+const zlib = require('node:zlib');
+const vm = require('node:vm');
 
 const ROOT = path.join(__dirname, '..');
 const KEY = 'test-local-key';
@@ -46,12 +48,80 @@ test('serves local dashboard, enforces auth, and validates manual tests', async 
       fetch(`${baseUrl}/healthz`),
     ]);
     assert.equal(page.status, 200);
-    assert.match(await page.text(), /Kilo Free Gateway/);
+    const pageHtml = await page.text();
+    assert.match(pageHtml, /Kilo Free Gateway/);
+    assert.match(pageHtml, /接入客户端/);
+    assert.match(pageHtml, /Claude Code（Anthropic Messages）/);
+    assert.match(pageHtml, /Cline（OpenAI 兼容表单）/);
+    assert.match(pageHtml, /Continue（config\.json）/);
+    assert.match(pageHtml, /Chatbox（自定义供应商）/);
+    assert.match(pageHtml, /Cherry Studio（自定义供应商）/);
+    assert.match(pageHtml, /WorkBuddy（自定义模型）/);
+    assert.equal([...pageHtml.matchAll(/<option value="/g)].length, 19, '18 documented clients and one generic option should be available');
+    assert.match(pageHtml, /class="setup-sidebar"/);
+    assert.match(pageHtml, /id="setup-client-list"/);
+    assert.match(pageHtml, /id="setup-client-search"/);
+    assert.match(pageHtml, /id="setup-content-scroll"/);
+    assert.match(pageHtml, /docs\/client-guides\/third-party-api-setup\.html/);
+    for (const client of [
+      'Trae（自定义模型）',
+      'DeepSeek Harness',
+      'CC-Switch（Claude Code）',
+      'OpenCode',
+      'WorkSwarm',
+      'Loomy',
+      'Hermes Agent',
+      'OpenFIC',
+      'GitHub Copilot（自带密钥）',
+      'VS Code GitHub Copilot Chat',
+      'QClaw',
+      'CC-Switch（Codex）',
+    ]) {
+      assert.ok(pageHtml.includes(client), `dashboard should include ${client}`);
+    }
+    assert.match(pageHtml, /复制给 WorkBuddy/);
+    assert.match(pageHtml, /下载 Skill ZIP/);
+    const inlineScripts = [...pageHtml.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)];
+    assert.ok(inlineScripts.length > 0, 'dashboard should include its scripts');
+    for (const [, script] of inlineScripts) {
+      assert.doesNotThrow(() => new vm.Script(script), 'dashboard script should be valid JavaScript');
+    }
     assert.equal(health.status, 200);
     assert.equal((await health.json()).ok, true);
 
     const unauthorized = await fetch(`${baseUrl}/api/catalog`);
     assert.equal(unauthorized.status, 401);
+
+    const guide = await fetch(`${baseUrl}/docs/client-guides/third-party-api-setup.html`);
+    assert.equal(guide.status, 200);
+    assert.match(guide.headers.get('content-type'), /text\/html/);
+    const guideHtml = await guide.text();
+    assert.match(guideHtml, /<html/i);
+    assert.match(guideHtml, /toc\.id = 'client-guide-toc'/);
+    const guideSections = [...guideHtml.matchAll(/<h3\b[^>]*>([\s\S]*?)<\/h3>/gi)]
+      .filter(([, heading]) => /^5\.\d+\b/.test(heading.replace(/<[^>]*>/g, '').trim()));
+    assert.equal(guideSections.length, 18, 'the tutorial TOC should cover all 18 client sections');
+
+    const unauthorizedSkill = await fetch(`${baseUrl}/api/workbuddy-skill`);
+    assert.equal(unauthorizedSkill.status, 401);
+
+    const [skillResponse, archiveResponse] = await Promise.all([
+      fetch(`${baseUrl}/api/workbuddy-skill`, { headers: { Authorization: `Bearer ${KEY}` } }),
+      fetch(`${baseUrl}/api/workbuddy-skill.zip`, { headers: { Authorization: `Bearer ${KEY}` } }),
+    ]);
+    assert.equal(skillResponse.status, 200);
+    assert.match(await skillResponse.text(), /帮我把 easyAI 模型接入 WorkBuddy/);
+    assert.equal(archiveResponse.status, 200);
+    assert.match(archiveResponse.headers.get('content-type'), /application\/zip/);
+    assert.match(archiveResponse.headers.get('content-disposition'), /configure-workbuddy-easyai-model\.zip/);
+    const archive = Buffer.from(await archiveResponse.arrayBuffer());
+    assert.equal(archive.subarray(0, 2).toString('ascii'), 'PK');
+    const filenameLength = archive.readUInt16LE(26);
+    const extraLength = archive.readUInt16LE(28);
+    const compressedLength = archive.readUInt32LE(18);
+    const contentOffset = 30 + filenameLength + extraLength;
+    const skillText = zlib.inflateRawSync(archive.subarray(contentOffset, contentOffset + compressedLength)).toString('utf8');
+    assert.match(skillText, /帮我把 easyAI 模型接入 WorkBuddy/);
 
     const invalid = await fetch(`${baseUrl}/api/test`, {
       method: 'POST',

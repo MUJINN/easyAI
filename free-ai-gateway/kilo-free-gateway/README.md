@@ -64,8 +64,11 @@ start.cmd cline
 | POST | `/v1/responses` | OpenAI Responses（部分模型） |
 | GET | `/healthz` | 本机服务健康检查（不检查上游） |
 | GET | `/` | 本地模型控制台 |
+| GET | `/docs/client-guides/third-party-api-setup.html` | 打开第三方模型 API 接入图文教程 |
 | GET | `/api/catalog` | 上游模型目录与项目能力标签 |
 | POST | `/api/test` | 用户手动触发的单次模型测试 |
+| GET | `/api/workbuddy-skill` | 获取 WorkBuddy 配置 Skill 文本 |
+| GET | `/api/workbuddy-skill.zip` | 下载 WorkBuddy 配置 Skill 压缩包 |
 
 ## 模型目录与能力信息
 
@@ -104,6 +107,12 @@ start.cmd cline
 > 模型目录里的 `isFree` 是上游当时返回的标记，不保证额度、账户要求、提供方路由或即时可用性。遇到错误时应以具体 API 响应为准。
 
 ## 接入各客户端
+
+模型卡片上的「接入客户端」按手册覆盖全部 18 个工具：Chatbox、Cline、Cherry Studio、Continue、WorkBuddy、Trae、DeepSeek Harness、CC-Switch（Claude Code / Codex）、OpenCode、WorkSwarm、Loomy、Hermes Agent、OpenFIC、GitHub Copilot BYOK、VS Code GitHub Copilot Chat、Claude Code 直连和 QClaw。页面按各自流程提供配置字段与操作提示；配置切换器和客户端特有高级字段仍需在目标应用中按界面操作。向导只生成和复制配置，不会改写客户端文件。WorkBuddy 使用本机网关地址时，需确认请求从运行网关的同一台电脑发出；远程 / 云端请求无法直接访问 `127.0.0.1`。未设置 `LOCAL_KEY` 时可使用占位 API Key；设置后应填入本地口令。配置预览会遮蔽口令，但复制配置会包含真实口令，请妥善保管。
+
+在模型卡片选择 WorkBuddy 后，可直接点「复制给 WorkBuddy」并粘贴到 WorkBuddy 对话框，或点「下载 Skill ZIP」后上传到 WorkBuddy 的 Skill 入口。源文件位于 `../configure-workbuddy-easyai-model/SKILL.md`。复制的指令不包含 API Key；Skill 会要求 WorkBuddy 在保存配置和发送测试请求前征求用户确认。
+
+完整的 18 款客户端图文教程位于 `docs/client-guides/third-party-api-setup.html`，也可从配置向导点击「查看 18 款客户端完整图文教程」打开。
 
 ### Claude Code
 
