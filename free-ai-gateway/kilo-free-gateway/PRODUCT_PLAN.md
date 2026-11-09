@@ -147,6 +147,8 @@
 - 默认仅监听本机回环地址；非本机监听要求配置 `LOCAL_KEY`，受保护的 API 路由会校验口令。
 - Windows 启动脚本将启动网关与显式模型探测/配置生成分开，探测或默认模型选择失败时停止生成。
 - 已提供 18 款客户端的接入指引、隐私和免费状态说明，以及 WorkBuddy Skill 下载入口。
+- **SenseNova 接入（首个 BYOK 服务商）**：本机加密凭据库管理 Key；解锁后可加载 SenseNova 模型目录、连通测试，统一兼容端点按模型 ID 前缀 `sensenova/` 自动路由转发到 SenseNova 上游（OpenAI Chat Completions、Anthropic Messages、OpenAI Responses）。不做隐式故障切换，Kilo 与 SenseNova 完全隔离。
+- **InternLM (书生·端砚) 接入（第二个 BYOK 服务商）**：本机加密凭据库管理 Key；解锁后可加载 InternLM 模型目录、连通测试，统一兼容端点按模型 ID 前缀 `internlm/` 自动路由转发到 InternLM 上游（OpenAI Chat Completions、Anthropic Messages、OpenAI Responses）。不做隐式故障切换，Kilo、SenseNova 与 InternLM 完全隔离。
 
 ### 当前验证
 
@@ -167,8 +169,9 @@
 
 - 首页提供两个明确入口：无需单独申请上游 Key 的 Kilo 免费模型，以及用户自行申请 Key 的服务商。
 - SenseNova 作为首个接入验证目标；已实现本机加密凭据库，可设置主密码、解锁/锁定、加密保存、替换和删除服务商 Key。Key 使用 `scrypt` 派生密钥和 AES-256-GCM 加密，不提供回显接口。
-- 凭据库仅解决本机保存和管理；当前尚未将 SenseNova Key 接入其模型目录读取或推理请求转发，因此仍不能视为已支持 SenseNova。
-- 初期由用户明确选择服务商和模型；不在上游失败时自动改发给 Kilo 或其他提供方。其他 OpenAI 兼容服务在 SenseNova 端到端流程验证后再抽象支持。
+- **已完成 SenseNova 接入**：凭据库解锁且配置 Key 后，可加载 SenseNova 模型目录（`/api/sensenova/catalog`）、进行连通测试（`/api/sensenova/test`），以及通过统一兼容端点（`/v1/chat/completions`、`/v1/messages`、`/v1/responses`）自动路由转发请求到 SenseNova。模型 ID 以 `sensenova/` 前缀区分。
+- **已完成 InternLM (书生·端砚) 接入**：凭据库解锁且配置 Key 后，可加载 InternLM 模型目录（`/api/internlm/catalog`）、进行连通测试（`/api/internlm/test`），以及通过统一兼容端点（`/v1/chat/completions`、`/v1/messages`、`/v1/responses`）自动路由转发请求到 InternLM。模型 ID 以 `internlm/` 前缀区分。
+- 初期由用户明确选择服务商和模型；不在上游失败时自动改发给 Kilo 或其他提供方。其他 OpenAI 兼容服务在 SenseNova 和 InternLM 端到端流程验证后再抽象支持。
 
 ## 7. 待验证的产品决策
 

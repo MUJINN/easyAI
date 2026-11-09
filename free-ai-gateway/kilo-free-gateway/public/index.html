@@ -11,341 +11,7 @@
       console.warn('Could not load saved theme preference:', error);
     }
   </script>
-  <style>
-    :root {
-      color-scheme: dark;
-      font-family: Inter, "Segoe UI", sans-serif;
-      background: var(--page-bg);
-      color: var(--text);
-      --page-bg: #101318;
-      --surface: #151920;
-      --surface-raised: #171c24;
-      --surface-inset: #0d1015;
-      --border: #292f3a;
-      --border-strong: #333b49;
-      --text: #e8edf5;
-      --muted: #9ba7b8;
-      --soft-text: #bdc8d8;
-      --button-bg: #202936;
-      --button-border: #394657;
-      --button-hover: #2a3748;
-      --selected-bg: #1b1d2b;
-      --selected-border: #7774f5;
-      --focus: #a9a6ff;
-      --notice-bg: #292317;
-      --notice-border: #65502a;
-      --notice-text: #ead9ac;
-      --free-bg: #14291e;
-      --free-border: #286445;
-      --free-text: #8ee0b2;
-      --unknown-border: #65552d;
-      --unknown-text: #d3bf84;
-      --warning-bg: #292317;
-      --warning-border: #65502a;
-      --selected-text: #b7b4ff;
-      --result-bg: #10141b;
-      --error-bg: #2d191c;
-      --error-border: #71373d;
-      --success-bg: #14291e;
-      --success-border: #286445;
-      --link: #a9a6ff;
-      --footer: #8290a3;
-      --dock-shadow: 0 -8px 28px rgb(0 0 0 / 28%);
-      --check-bg: #101318;
-    }
-    :root[data-theme="light"] {
-      color-scheme: light;
-      --page-bg: #f3f5f9;
-      --surface: #ffffff;
-      --surface-raised: #f7f8fb;
-      --surface-inset: #f1f3f7;
-      --border: #d9dee8;
-      --border-strong: #c6ceda;
-      --text: #202633;
-      --muted: #667085;
-      --soft-text: #475467;
-      --button-bg: #eef1f6;
-      --button-border: #c7cfdb;
-      --button-hover: #e2e7ef;
-      --selected-bg: #eeeeff;
-      --selected-border: #655ee8;
-      --focus: #514bc7;
-      --notice-bg: #fff7e2;
-      --notice-border: #e5c875;
-      --notice-text: #684f0b;
-      --free-bg: #e8f7ed;
-      --free-border: #9bd4ad;
-      --free-text: #216b3b;
-      --unknown-border: #dfcf91;
-      --unknown-text: #755f18;
-      --warning-bg: #fff4d6;
-      --warning-border: #e2c76f;
-      --selected-text: #514bc7;
-      --result-bg: #f5f7fa;
-      --error-bg: #fff0f0;
-      --error-border: #e2a8ab;
-      --success-bg: #e8f7ed;
-      --success-border: #9bd4ad;
-      --link: #514bc7;
-      --footer: #667085;
-      --dock-shadow: 0 -8px 28px rgb(32 38 51 / 14%);
-      --check-bg: #ffffff;
-    }
-    * { box-sizing: border-box; }
-    body { margin: 0; }
-    body.has-selection-dock { padding-bottom: 104px; }
-    header { border-bottom: 1px solid var(--border); background: var(--surface); }
-    .wrap { width: min(1120px, calc(100% - 32px)); margin: auto; }
-    .top { padding: 24px 0 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-    .header-tools { display: flex; align-items: center; gap: 14px; }
-    h1 { margin: 0; font-size: 22px; letter-spacing: -.3px; }
-    .sub { color: #9ba7b8; margin: 7px 0 0; font-size: 14px; }
-    main { padding: 24px 0 56px; }
-    .notice { border: 1px solid var(--notice-border); background: var(--notice-bg); color: var(--notice-text); border-radius: 10px; padding: 13px 15px; line-height: 1.5; font-size: 13px; margin-bottom: 20px; }
-    .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
-    input, select, textarea, button { font: inherit; }
-    input[type="search"], input[type="password"], select, textarea { color: var(--text); background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: 8px; padding: 10px 12px; }
-    input[type="search"] { flex: 1; min-width: 220px; }
-    input[type="password"] { width: min(330px, 100%); }
-    button { border: 1px solid var(--button-border); background: var(--button-bg); color: var(--text); border-radius: 8px; padding: 9px 13px; cursor: pointer; }
-    button:hover { background: var(--button-hover); }
-    button.icon-button { width: 40px; height: 40px; padding: 8px; display: inline-grid; place-items: center; font-size: 20px; line-height: 1; }
-    button.primary { background: #6b68e8; border-color: var(--selected-border); color: white; }
-    button.primary:hover { background: #7976f3; }
-    button:disabled { opacity: .55; cursor: wait; }
-    .muted, .meta { color: var(--muted); font-size: 13px; }
-    .catalog { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; }
-    .card, .panel { border: 1px solid var(--border); background: var(--surface); border-radius: 11px; padding: 16px; }
-    .card { cursor: pointer; transition: border-color .12s, background .12s; }
-    .card:hover { border-color: var(--button-border); }
-    .card[data-test-selected="true"] { border-color: var(--button-border); background: var(--selected-bg); }
-    .card:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-    .card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-    .card-check {
-      order: 1;
-      flex: 0 0 22px;
-      width: 22px;
-      height: 22px;
-      margin-top: 0;
-      border: 2px solid var(--muted);
-      border-radius: 5px;
-      display: grid;
-      place-items: center;
-      color: #fff;
-      background: var(--check-bg);
-      font-size: 17px;
-      font-weight: 700;
-      line-height: 1;
-      visibility: hidden;
-    }
-    .card[data-test-selected="true"] .card-check { visibility: visible; background: #6b68e8; border-color: #6b68e8; }
-    .card[data-test-selected="true"] .card-check::after { content: "✓"; }
-    .card-title-group { display: flex; align-items: flex-start; gap: 8px; min-width: 0; margin-right: auto; flex-wrap: wrap; }
-    .card-heading h2 { min-width: 0; margin: 0; }
-    .card .copy-model-button { flex: 0 0 auto; margin: 0; padding: 2px 7px; color: var(--selected-text); font-size: 11px; line-height: 1.4; }
-    body.is-lasso-pressed, body.is-lasso-pressed * { user-select: none !important; }
-    body.is-lassoing, body.is-lassoing * { cursor: crosshair !important; }
-    #selection-lasso { position: fixed; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 20; }
-    #selection-lasso rect { fill: rgb(107 104 232 / 18%); stroke: #7976f3; stroke-width: 2; vector-effect: non-scaling-stroke; }
-    .card h2 { font-size: 15px; line-height: 1.45; overflow-wrap: anywhere; margin: 0 0 8px; }
-    .card .model-name { margin: -4px 0 8px; color: var(--muted); font-size: 13px; }
-    .badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
-    .badge { font-size: 11px; border: 1px solid var(--button-border); border-radius: 999px; padding: 3px 8px; color: var(--soft-text); }
-    .badge.free { color: var(--free-text); border-color: var(--free-border); background: var(--free-bg); }
-    .badge.unknown { color: var(--unknown-text); border-color: var(--unknown-border); }
-    .badge.warning { color: var(--notice-text); border-color: var(--warning-border); background: var(--warning-bg); }
-    .card .meta { margin: 4px 0; }
-    .card .provider-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .card .description { color: var(--soft-text); font-size: 12px; line-height: 1.5; margin: 10px 0; }
-    .card .description details { margin-top: 5px; }
-    .card .description summary { color: var(--link); cursor: pointer; }
-    .card button { margin-top: 12px; }
-    .card .test-model-button, .card .configure-model-button { width: 100%; }
-    .card .selection-status { color: var(--selected-text); font-size: 12px; }
-    .card-result { margin-top: 12px; padding: 10px; border-radius: 8px; border: 1px solid var(--button-border); background: var(--result-bg); }
-    .card-result.good { border-color: var(--success-border); background: var(--success-bg); }
-    .card-result.bad { border-color: var(--error-border); background: var(--error-bg); }
-    .card-result .result-state { font-size: 12px; font-weight: 600; }
-    .card-result p { margin: 7px 0 0; font: 12px/1.5 ui-monospace, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
-    .card-result details { margin-top: 7px; color: var(--soft-text); font-size: 12px; }
-    .card-result summary { cursor: pointer; }
-    .empty { grid-column: 1 / -1; color: var(--muted); padding: 24px; text-align: center; border: 1px dashed var(--button-border); border-radius: 10px; }
-    .section-title { margin: 30px 0 12px; font-size: 17px; }
-    .settings { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-    .selection-toolbar { margin: 0 0 12px; }
-    .selection-actions { display: flex; gap: 8px; align-items: center; }
-    .selection-dock {
-      position: fixed;
-      z-index: 10;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      display: none;
-      padding: 12px 16px;
-      border-top: 1px solid var(--border);
-      background: var(--surface);
-      box-shadow: var(--dock-shadow);
-    }
-    .selection-dock.visible { display: block; }
-    .selection-dock-inner { width: min(1120px, 100%); margin: 0 auto; display: flex; align-items: center; gap: 12px; }
-    .selection-dock-copy { min-width: 0; margin-right: auto; }
-    .selection-dock-count { font-weight: 600; }
-    .selection-dock-note { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
-    .selection-actions button, .selection-dock button { white-space: nowrap; }
-    .home-hero { padding: 18px 0 24px; }
-    .home-eyebrow { margin: 0 0 8px; color: var(--selected-text); font-size: 12px; font-weight: 700; letter-spacing: .08em; }
-    .home-hero h2 { margin: 0; font-size: clamp(24px, 4vw, 34px); letter-spacing: -.7px; }
-    .home-hero p { max-width: 680px; margin: 10px 0 0; color: var(--muted); line-height: 1.65; }
-    .entry-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-    .entry-card { display: flex; flex-direction: column; min-height: 260px; padding: 22px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
-    .entry-card.featured { border-color: var(--selected-border); background: linear-gradient(145deg, var(--selected-bg), var(--surface) 68%); }
-    .entry-card-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    .entry-mark { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid var(--border-strong); border-radius: 13px; background: var(--surface-raised); color: var(--selected-text); font-weight: 750; }
-    .entry-badge { border: 1px solid var(--free-border); border-radius: 999px; padding: 5px 9px; color: var(--free-text); background: var(--free-bg); font-size: 11px; }
-    .entry-badge.key-required { border-color: var(--unknown-border); color: var(--unknown-text); background: var(--warning-bg); }
-    .entry-card h3 { margin: 20px 0 7px; font-size: 19px; }
-    .entry-card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
-    .entry-card ul { margin: 14px 0 20px; padding-left: 18px; color: var(--soft-text); font-size: 12px; line-height: 1.8; }
-    .entry-card button { align-self: flex-start; margin-top: auto; }
-    .home-footnote { margin: 18px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
-    .provider-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin: 12px 0 18px; }
-    .provider-heading h2 { margin: 0; font-size: 23px; }
-    .provider-heading p { max-width: 700px; margin: 7px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
-    .provider-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
-    .provider-card { padding: 18px; border: 1px solid var(--border); border-radius: 13px; background: var(--surface); }
-    .provider-card h3 { margin: 0; font-size: 16px; }
-    .provider-card p { color: var(--muted); font-size: 12px; line-height: 1.55; }
-    .provider-card .provider-state { display: inline-flex; margin: 12px 0 2px; padding: 4px 8px; border: 1px solid var(--unknown-border); border-radius: 999px; color: var(--unknown-text); font-size: 11px; }
-    .provider-card button { width: 100%; margin-top: 12px; }
-    .flow-panel { margin-top: 20px; padding: 20px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
-    .flow-panel h3 { margin: 0 0 6px; font-size: 18px; }
-    .flow-intro { margin: 0 0 18px; color: var(--muted); font-size: 13px; line-height: 1.6; }
-    .flow-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0 0 18px; padding: 0; list-style: none; }
-    .flow-step { padding: 12px; border: 1px solid var(--border); border-radius: 11px; color: var(--muted); font-size: 12px; }
-    .flow-step[aria-current="step"] { border-color: var(--selected-border); color: var(--selected-text); background: var(--selected-bg); }
-    .flow-step-number { display: block; margin-bottom: 5px; font-size: 10px; font-weight: 750; }
-    .flow-content { min-height: 158px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-raised); }
-    .flow-content h4 { margin: 0 0 8px; font-size: 14px; }
-    .flow-content p { max-width: 760px; margin: 6px 0; color: var(--soft-text); font-size: 13px; line-height: 1.65; }
-    .flow-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
-    .prototype-notice { margin-top: 16px; padding: 12px 14px; border: 1px solid var(--notice-border); border-radius: 10px; color: var(--notice-text); background: var(--notice-bg); font-size: 12px; line-height: 1.6; }
-    .provider-status { min-height: 20px; margin-top: 10px; color: var(--muted); font-size: 12px; }
-    .vault-password-row { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin-top: 14px; }
-    .vault-field { display: grid; flex: 1 1 260px; gap: 6px; color: var(--soft-text); font-size: 12px; }
-    .vault-field input { width: 100%; }
-    .vault-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; }
-    .vault-actions button { margin: 0; }
-    .vault-state { color: var(--selected-text); font-size: 12px; }
-    .vault-warning { color: var(--notice-text); }
-    .test-grid { display: grid; grid-template-columns: minmax(200px, 1fr) auto; gap: 10px; margin-top: 12px; }
-    textarea { width: 100%; min-height: 78px; resize: vertical; grid-column: 1 / -1; line-height: 1.5; }
-    pre { overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--surface-inset); border: 1px solid var(--border); border-radius: 8px; padding: 13px; color: var(--soft-text); line-height: 1.5; font-size: 12px; }
-    .result { margin-top: 12px; border-radius: 8px; padding: 12px; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.5 ui-monospace, Consolas, monospace; }
-    .result.good { border: 1px solid var(--success-border); background: var(--success-bg); }
-    .result.bad { border: 1px solid var(--error-border); background: var(--error-bg); }
-    .hidden { display: none; }
-    .setup-dialog { width: min(1040px, calc(100% - 32px)); height: min(760px, calc(100% - 32px)); max-width: none; max-height: none; overflow: hidden; padding: 0; color: var(--text); background: var(--page-bg); border: 1px solid var(--border-strong); border-radius: 20px; box-shadow: 0 24px 80px rgb(0 0 0 / 36%); }
-    .setup-dialog::backdrop { background: rgb(7 10 16 / 68%); backdrop-filter: blur(5px); }
-    .setup-dialog-header { height: 82px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 24px; background: var(--surface); border-bottom: 1px solid var(--border); }
-    .setup-brand { display: flex; align-items: center; gap: 13px; min-width: 0; }
-    .setup-brand-mark { width: 42px; height: 42px; flex: 0 0 42px; display: grid; place-items: center; border-radius: 14px; color: white; font-size: 17px; font-weight: 750; background: linear-gradient(140deg, #7774f5, #4c7df0); box-shadow: 0 6px 16px rgb(91 105 232 / 25%); }
-    .setup-dialog-header h2 { margin: 0; font-size: 18px; letter-spacing: -.2px; }
-    .setup-dialog-header p { overflow: hidden; margin: 4px 0 0; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-    .setup-close { width: 36px; height: 36px; display: grid; place-items: center; padding: 0; border-radius: 10px; color: var(--muted); font-size: 20px; }
-    .setup-layout { height: calc(100% - 82px); display: grid; grid-template-columns: 252px minmax(0, 1fr); min-height: 0; }
-    .setup-sidebar { display: flex; flex-direction: column; min-height: 0; padding: 20px 14px 16px; background: var(--surface); border-right: 1px solid var(--border); }
-    .setup-sidebar-heading { display: flex; align-items: center; justify-content: space-between; padding: 0 9px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-    .setup-count { border-radius: 999px; padding: 3px 7px; color: var(--selected-text); background: var(--selected-bg); font-size: 10px; letter-spacing: 0; }
-    .setup-dialog .setup-search { flex: 0 0 auto; width: 100%; min-width: 0; height: 36px; margin: 14px 0 12px; padding: 8px 11px !important; font-size: 12px; }
-    .setup-client-list { min-height: 0; overflow-y: auto; padding-right: 3px; }
-    .setup-client-group + .setup-client-group { margin-top: 14px; }
-    .setup-client-group-title { margin: 0 8px 6px; color: var(--muted); font-size: 11px; font-weight: 600; }
-    .setup-client-option { width: 100%; display: flex; align-items: center; gap: 9px; margin: 2px 0; padding: 8px 9px; text-align: left; border-color: transparent; background: transparent; color: var(--soft-text); font-size: 12px; }
-    .setup-client-option:hover { background: var(--surface-raised); }
-    .setup-client-option[aria-current="true"] { color: var(--selected-text); background: var(--selected-bg); border-color: color-mix(in srgb, var(--selected-border) 28%, transparent); font-weight: 650; }
-    .setup-client-icon { width: 25px; height: 25px; flex: 0 0 25px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-raised); color: var(--soft-text); font-size: 9px; font-weight: 750; }
-    .setup-client-option[aria-current="true"] .setup-client-icon { border-color: var(--selected-border); color: var(--selected-text); background: var(--surface); }
-    .setup-client-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .setup-content { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 0; background: var(--page-bg); }
-    .setup-content-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 24px 30px 28px; }
-    .setup-client-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
-    .setup-client-heading h3 { margin: 0; font-size: 21px; letter-spacing: -.35px; }
-    .setup-client-heading p { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
-    .setup-protocol-badge { flex: 0 0 auto; border: 1px solid var(--selected-border); border-radius: 999px; padding: 6px 10px; color: var(--selected-text); background: var(--selected-bg); font-size: 11px; }
-    .setup-step-row { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; color: var(--muted); font-size: 11px; }
-    .setup-step { display: flex; align-items: center; gap: 6px; }
-    .setup-step-number { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; background: var(--selected-bg); color: var(--selected-text); font-size: 10px; font-weight: 700; }
-    .setup-step-line { width: 28px; height: 1px; background: var(--border-strong); }
-    .setup-section { margin-top: 16px; padding: 17px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
-    .setup-section-title { display: flex; align-items: center; gap: 9px; margin: 0 0 13px; font-size: 13px; font-weight: 700; }
-    .setup-section-index { width: 23px; height: 23px; display: grid; place-items: center; border-radius: 8px; color: var(--selected-text); background: var(--selected-bg); font-size: 11px; }
-    .setup-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .setup-field { min-width: 0; }
-    .setup-field.full { grid-column: 1 / -1; }
-    .setup-dialog .setup-field label { display: block; margin: 0 0 6px; color: var(--soft-text); font-size: 11px; font-weight: 650; }
-    .setup-dialog .setup-field input { width: 100%; min-width: 0; padding: 10px 11px; border: 1px solid var(--border-strong); border-radius: 9px; color: var(--text); background: var(--surface-raised); font-size: 12px; }
-    .setup-dialog input[readonly] { color: var(--muted); background: var(--surface-inset); }
-    .setup-help { margin: 6px 0 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
-    .setup-dialog .setup-note { padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--muted); font-size: 12px; line-height: 1.55; }
-    .setup-dialog .setup-note p { margin: 6px 0 0; }
-    .setup-guide-link { display: inline-flex; align-items: center; gap: 6px; margin: 12px 2px 0; color: var(--link); font-size: 12px; font-weight: 650; text-decoration: none; }
-    .setup-guide-link:hover { text-decoration: underline; }
-    .setup-dialog .setup-skill-tools { margin-top: 16px; border-color: var(--selected-border); background: var(--selected-bg); }
-    .setup-skill-tools strong { color: var(--text); font-size: 13px; }
-    .setup-skill-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-    .setup-skill-actions button { margin: 0; }
-    .setup-dialog .setup-status { display: block; min-height: 18px; margin-top: 5px; color: var(--muted); font-size: 11px; }
-    .setup-preview { margin-top: 16px; padding: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
-    .setup-preview summary { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; cursor: pointer; color: var(--soft-text); font-size: 12px; font-weight: 650; }
-    .setup-preview summary::marker { color: var(--selected-text); }
-    .setup-preview-content { padding: 0 16px 15px; }
-    .setup-dialog .setup-preview textarea { width: 100%; min-height: 150px; margin: 0; padding: 12px; resize: vertical; font: 11px/1.55 ui-monospace, Consolas, monospace; }
-    .setup-dialog .setup-actions { display: flex; align-items: center; gap: 10px; }
-    .setup-dialog .setup-actions button { margin: 0; }
-    .setup-footer { min-height: 70px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 30px; border-top: 1px solid var(--border); background: var(--surface); }
-    .setup-footer-copy { min-width: 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
-    .setup-footer-copy strong { display: block; margin-bottom: 2px; color: var(--soft-text); font-size: 12px; }
-    .setup-footer-actions { display: flex; align-items: center; gap: 10px; }
-    .setup-footer-actions button { margin: 0; white-space: nowrap; }
-    .setup-footer-actions .setup-status { min-width: 130px; margin: 0; text-align: right; }
-    .setup-dialog .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-    @media (max-width: 760px) {
-      .setup-dialog { width: calc(100% - 16px); height: calc(100% - 16px); border-radius: 16px; }
-      .setup-layout { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
-      .setup-sidebar { padding: 10px 14px; border-right: 0; border-bottom: 1px solid var(--border); }
-      .setup-sidebar-heading, .setup-search, .setup-client-group-title { display: none; }
-      .setup-client-list { display: flex; gap: 7px; overflow: auto; padding: 0 0 2px; }
-      .setup-client-group { display: contents; }
-      .setup-client-option { width: auto; flex: 0 0 auto; margin: 0; padding: 6px 9px; border-color: var(--border); background: var(--surface-raised); }
-      .setup-client-name { max-width: 140px; }
-      .setup-content-scroll { padding: 18px 16px 22px; }
-      .setup-footer { padding: 10px 16px; }
-    }
-    @media (max-width: 480px) {
-      .setup-dialog-header { height: 70px; padding: 12px 15px; }
-      .setup-layout { height: calc(100% - 70px); }
-      .setup-brand-mark { width: 36px; height: 36px; flex-basis: 36px; }
-      .setup-client-heading { display: block; }
-      .setup-protocol-badge { display: inline-block; margin-top: 10px; }
-      .setup-fields { grid-template-columns: 1fr; }
-      .setup-field.full { grid-column: auto; }
-      .setup-footer-copy { display: none; }
-      .setup-footer-actions { width: 100%; justify-content: space-between; }
-    }
-    footer { margin-top: 16px; color: var(--footer); font-size: 12px; }
-    a { color: var(--link); }
-    @media (max-width: 700px) {
-      body.has-selection-dock { padding-bottom: 148px; }
-      .selection-dock-inner { flex-wrap: wrap; gap: 8px; }
-      .selection-dock-copy { flex-basis: 100%; }
-      .selection-actions { width: 100%; }
-      .selection-actions button, .selection-dock button { flex: 1 1 auto; }
-      .entry-grid { grid-template-columns: 1fr; }
-      .entry-card { min-height: 230px; }
-      .flow-steps { grid-template-columns: 1fr; }
-    }
-    @media (max-width: 600px) { .top { align-items: flex-start; flex-direction: column; } .header-tools { width: 100%; justify-content: space-between; } .test-grid { grid-template-columns: 1fr; } }
-  </style>
+  <link rel="stylesheet" href="/assets/dashboard.css">
 </head>
 <body>
   <header>
@@ -355,7 +21,7 @@
         <p class="sub">在自己的电脑管理模型服务，并接入常用客户端</p>
       </div>
       <div class="header-tools">
-        <button id="home-button" type="button" hidden>返回首页</button>
+        <button id="home-button" type="button" hidden>返回服务选择</button>
         <button id="theme-toggle" class="icon-button" type="button" aria-label="切换到亮色主题" title="切换到亮色主题">
           <span id="theme-icon" aria-hidden="true">☀</span>
         </button>
@@ -386,17 +52,33 @@
         </article>
         <article class="entry-card">
           <div class="entry-card-top">
-            <div class="entry-mark" aria-hidden="true">BYOK</div>
+            <div class="entry-mark" aria-hidden="true">SN</div>
             <span class="entry-badge key-required">需要服务商 API Key</span>
           </div>
-          <h3>接入自己的模型服务</h3>
-          <p>选择你已有账号的服务商，在本机管理凭据、验证连接并统一选择模型。</p>
+          <h3>SenseNova（商汤日日新）</h3>
+          <p>使用自己的 SenseNova 账号和 API Key，在本机加密管理凭据并测试模型。</p>
           <ul>
-            <li>请求使用你自己的服务商账号</li>
-            <li>先从 SenseNova 接入流程开始</li>
+            <li>适合已有 SenseNova 账号的用户</li>
+            <li>模型请求会发送给 SenseNova</li>
           </ul>
-          <button id="open-providers" type="button">查看服务商与接入流程</button>
+          <button id="open-sensenova" type="button">接入 SenseNova</button>
         </article>
+        <article class="entry-card">
+          <div class="entry-card-top">
+            <div class="entry-mark" aria-hidden="true">IL</div>
+            <span class="entry-badge key-required">需要服务商 API Key</span>
+          </div>
+          <h3>InternLM（书生·端砚）</h3>
+          <p>使用自己的 InternLM 账号和 API Key，在本机加密管理凭据并测试模型。</p>
+          <ul>
+            <li>适合已有 InternLM 账号的用户</li>
+            <li>模型请求会发送给 InternLM</li>
+          </ul>
+          <button id="open-internlm" type="button">接入 InternLM</button>
+        </article>
+      </div>
+      <div class="home-provider-management">
+        <button id="open-providers" type="button">管理所有服务商与本机凭据</button>
       </div>
       <p class="home-footnote">提示：本机运行有助于让凭据留在你的设备上，但设备安全、操作系统账户和本地恶意软件仍会影响密钥安全。每次请求都会发往你选择的上游服务商。</p>
     </section>
@@ -406,17 +88,25 @@
       ⚠️ 本网关不会在本机运行 AI 模型。测试时你输入的提示词会发送给对应的第三方模型服务商；是否免费、可用及隐私规则由服务商决定。列表能看到模型，不代表模型一定可以正常调用。
     </div>
 
+    <details id="connection-settings" class="connection-settings">
+      <summary>连接设置（本地访问口令）</summary>
+      <div class="bar">
+        <input id="local-key" type="password" autocomplete="off" placeholder="仅设置 LOCAL_KEY 时填写" aria-label="本地访问口令">
+        <button id="save-key" type="button">保存并连接</button>
+        <span id="local-key-status" class="connection-settings-status" role="status" aria-live="polite"></span>
+      </div>
+    </details>
     <div class="bar">
-      <input id="local-key" type="password" autocomplete="off" placeholder="本地口令（仅设置 LOCAL_KEY 时填写）" aria-label="本地访问口令">
-      <button id="save-key">使用口令</button>
       <input id="search" type="search" placeholder="搜索模型或能力标签" aria-label="搜索模型">
       <label class="muted"><input id="free-only" type="checkbox"> 仅显示上游标记免费的模型</label>
       <button id="refresh">刷新目录</button>
     </div>
 
     <div class="settings selection-toolbar">
-      <span id="selection-status" class="muted">点击卡片逐个选中 / 取消，也可按住鼠标左键拖动方框选中；高级：Shift 点击范围多选，Ctrl+A 全选列表。</span>
+      <span id="selection-status" class="muted">点击卡片选中；按住鼠标左键拖框，Shift 点击可范围多选。</span>
       <div class="selection-actions">
+        <button id="select-visible-button" type="button">全选当前结果</button>
+        <button id="selected-only-button" type="button" aria-pressed="false">仅看已选</button>
         <button id="top-test-button" class="primary" aria-label="测试已选模型" disabled>测试</button>
         <button id="top-stop-button" aria-label="停止批量测试" hidden>停止测试</button>
         <button id="clear-selection" aria-label="清空测试选择" disabled>清空选择</button>
@@ -426,22 +116,22 @@
       <div class="empty">正在读取上游模型目录……</div>
     </section>
 
-    <h2 class="section-title">问答测试</h2>
-    <section class="panel">
+    <details class="panel" style="margin-top: 16px;">
+      <summary class="section-title" style="cursor: pointer; user-select: none;">问答测试（批量测试将使用此提示词）</summary>
       <div class="test-grid">
         <textarea id="test-prompt" maxlength="2000" aria-label="测试提示词" placeholder="请输入任意测试提示词"></textarea>
         <button id="test-button" class="primary" disabled>发送一次测试请求</button>
       </div>
       <div id="test-result" class="result hidden" role="status"></div>
       <footer>所有批量测试，都会使用上面文本框里的内容作为测试提问，可以自行修改。提示词会发送给对应上游并可能消耗额度；响应仅显示在本地页面，网关日志不记录提示词或响应内容。</footer>
-    </section>
+    </details>
     </section>
 
-    <section id="providers-view" aria-labelledby="providers-title" hidden>
+    <section id="vault-view" aria-labelledby="vault-page-title" hidden>
       <div class="provider-heading">
         <div>
-          <h2 id="providers-title">我的模型服务</h2>
-          <p>连接你自己申请的服务商 Key。每个服务商单独配置，之后可在统一目录中查看模型和连接状态；不会自动把请求切换到其他服务商。</p>
+          <h2 id="vault-page-title">服务商凭据管理</h2>
+          <p>在这里创建或解锁本机凭据库，并分别管理 SenseNova 与 InternLM 的 API Key。</p>
         </div>
       </div>
       <section class="flow-panel" aria-labelledby="vault-title">
@@ -463,51 +153,180 @@
             <span>SenseNova API Key</span>
             <input id="sensenova-api-key" type="password" autocomplete="off" spellcheck="false" placeholder="输入或替换服务商 Key">
           </label>
+          <label class="vault-field" for="internlm-api-key">
+            <span>InternLM API Key</span>
+            <input id="internlm-api-key" type="password" autocomplete="off" spellcheck="false" placeholder="输入或替换服务商 Key">
+          </label>
           <div class="vault-actions">
-            <button id="save-sensenova-key" class="primary" type="button">加密保存 Key</button>
-            <button id="delete-sensenova-key" type="button">删除已保存 Key</button>
+            <button id="save-sensenova-key" class="primary" type="button">加密保存 SenseNova Key</button>
+            <button id="delete-sensenova-key" type="button">删除已保存 SenseNova Key</button>
+            <button id="save-internlm-key" class="primary" type="button">加密保存 InternLM Key</button>
+            <button id="delete-internlm-key" type="button">删除已保存 InternLM Key</button>
             <button id="vault-lock-button" type="button">锁定凭据库</button>
             <span id="vault-key-status" class="vault-state" role="status" aria-live="polite"></span>
           </div>
         </div>
       </section>
-      <div class="provider-list">
-        <article class="provider-card">
-          <h3>SenseNova（商汤日日新）</h3>
-          <p>首个接入验证目标 · OpenAI 兼容 API<br>API 地址：<code>https://token.sensenova.cn/v1</code></p>
-          <span id="sensenova-provider-state" class="provider-state">检查凭据状态中…</span>
-          <button id="open-sensenova-flow" class="primary" type="button">查看 Key 接入流程</button>
-        </article>
-        <article class="provider-card">
-          <h3>其他 OpenAI 兼容服务</h3>
-          <p>用于接入其他支持 OpenAI 兼容接口的服务商或本地服务。</p>
-          <span class="provider-state">后续支持</span>
-          <button type="button" disabled>即将开放</button>
-        </article>
-      </div>
-      <section id="sensenova-flow" class="flow-panel" aria-labelledby="flow-title" hidden>
-        <h3 id="flow-title">接入 SenseNova</h3>
-        <p class="flow-intro">先获取服务商 Key，再存入本机加密凭据库。模型连接验证与目录接入将在凭据保存后续接。</p>
-        <ol class="flow-steps" aria-label="SenseNova 接入步骤">
-          <li class="flow-step" data-flow-step="1" aria-current="step"><span class="flow-step-number">第 1 步</span>获取服务商 Key</li>
-          <li class="flow-step" data-flow-step="2"><span class="flow-step-number">第 2 步</span>在本机管理凭据</li>
-          <li class="flow-step" data-flow-step="3"><span class="flow-step-number">第 3 步</span>验证并选择模型</li>
-        </ol>
-        <div id="flow-content" class="flow-content" aria-live="polite">
-          <h4>先从 SenseNova 获取 API Key</h4>
-          <p>登录你自己的 SenseNova 账号，在服务商控制台申请 API Key，并确认账号权限、计费或免费额度说明。</p>
-          <p>获取 Key 后先保存在安全位置。不要把它发给他人，也不要粘贴到聊天或截图里。</p>
-          <p><a href="https://www.sensenova.cn/token-plan" target="_blank" rel="noreferrer">前往 SenseNova 官网申请 API Key</a></p>
-        </div>
-        <div class="prototype-notice">主密码不会写入磁盘。忘记主密码后无法恢复已保存的 Key；本机账户或恶意软件仍可能影响运行中服务的安全。</div>
-        <div class="flow-actions">
-          <button id="flow-back" type="button" hidden>上一步</button>
-          <button id="flow-next" class="primary" type="button">下一步</button>
-          <button id="flow-close" type="button">返回服务商列表</button>
-        </div>
-        <div id="provider-status" class="provider-status" role="status" aria-live="polite"></div>
-      </section>
+      <nav class="provider-page-nav" aria-label="服务商页面">
+        <span class="muted">前往服务商页面：</span>
+        <button id="vault-open-sensenova" type="button">SenseNova</button>
+        <button id="vault-open-internlm" type="button">InternLM</button>
+      </nav>
     </section>
+
+      <section id="sensenova-view" aria-labelledby="sensenova-page-title" hidden>
+        <div class="provider-page-heading">
+          <div class="provider-heading">
+            <div>
+              <h2 id="sensenova-page-title">SenseNova（商汤日日新）</h2>
+              <p>独立的 SenseNova 凭据、模型目录与连接测试页面。</p>
+            </div>
+          </div>
+          <button class="manage-provider-credentials" type="button" data-open-vault>管理本机凭据</button>
+        </div>
+        <!-- SenseNova 接入向导 -->
+        <section id="sensenova-flow" class="flow-panel" aria-labelledby="sensenova-flow-title">
+          <div class="provider-heading">
+            <h3 id="sensenova-flow-title">SenseNova（商汤日日新）</h3>
+            <p>首个接入验证目标 · OpenAI 兼容 API<br>API 地址：<code>https://token.sensenova.cn/v1</code></p>
+            <span id="sensenova-provider-state" class="provider-state">检查凭据状态中…</span>
+          </div>
+          <p class="flow-intro">先获取服务商 Key，再存入本机加密凭据库。模型连接验证与目录接入将在凭据保存后续接。</p>
+          <ol class="flow-steps" aria-label="SenseNova 接入步骤">
+            <li class="flow-step" data-flow-step="1" aria-current="step"><span class="flow-step-number">第 1 步</span>获取服务商 Key</li>
+            <li class="flow-step" data-flow-step="2"><span class="flow-step-number">第 2 步</span>在本机管理凭据</li>
+            <li class="flow-step" data-flow-step="3"><span class="flow-step-number">第 3 步</span>验证并选择模型</li>
+          </ol>
+          <div id="sensenova-flow-content" class="flow-content" aria-live="polite">
+            <h4>先从 SenseNova 获取 API Key</h4>
+            <p>登录你自己的 SenseNova 账号，在服务商控制台申请 API Key，并确认账号权限、计费或免费额度说明。</p>
+            <p>获取 Key 后先保存在安全位置。不要把它发给他人，也不要粘贴到聊天或截图里。</p>
+            <p><a href="https://www.sensenova.cn/token-plan" target="_blank" rel="noreferrer">前往 SenseNova 官网申请 API Key</a></p>
+          </div>
+          <div class="prototype-notice">主密码不会写入磁盘。忘记主密码后无法恢复已保存的 Key；本机账户或恶意软件仍可能影响运行中服务的安全。</div>
+          <div class="flow-actions">
+            <button id="sensenova-flow-back" type="button" hidden>上一步</button>
+            <button id="sensenova-flow-next" class="primary" type="button">下一步</button>
+            <button id="sensenova-flow-close" type="button">关闭向导</button>
+          </div>
+          <div id="sensenova-provider-status" class="provider-status" role="status" aria-live="polite"></div>
+        </section>
+
+        <!-- SenseNova 模型目录与测试区域 -->
+        <section id="sensenova-catalog-section" class="flow-panel" aria-labelledby="sensenova-catalog-title" hidden>
+          <div class="provider-heading">
+            <h3 id="sensenova-catalog-title">SenseNova 模型目录</h3>
+            <p>凭据库解锁且已配置 Key 后，可加载模型目录并测试连接。</p>
+          </div>
+          <div class="bar">
+            <button id="load-sensenova-catalog" class="primary" type="button">加载 SenseNova 模型目录</button>
+            <span id="sensenova-catalog-status" class="muted" role="status"></span>
+          </div>
+          <div class="bar">
+            <input id="sensenova-search" type="search" placeholder="搜索模型或能力标签" aria-label="搜索 SenseNova 模型">
+          </div>
+          <div class="settings selection-toolbar">
+            <span id="sensenova-selection-status" class="muted">点击卡片选中；按住鼠标左键拖框，Shift 点击可范围多选。</span>
+            <div class="selection-actions">
+              <button id="sensenova-select-visible-button" type="button">全选当前结果</button>
+              <button id="sensenova-selected-only-button" type="button" aria-pressed="false">仅看已选</button>
+              <button id="sensenova-top-test-button" class="primary" aria-label="测试已选模型" disabled>测试</button>
+              <button id="sensenova-top-stop-button" aria-label="停止批量测试" hidden>停止测试</button>
+              <button id="sensenova-clear-selection" aria-label="清空测试选择" disabled>清空选择</button>
+            </div>
+          </div>
+          <section id="sensenova-catalog" class="catalog" role="group" aria-label="SenseNova 模型列表，可多选测试">
+            <div class="empty">点击上方按钮加载 SenseNova 模型目录</div>
+          </section>
+
+          <details class="panel" style="margin-top: 16px;">
+            <summary class="section-title" style="cursor: pointer; user-select: none;">问答测试（批量测试将使用此提示词）</summary>
+            <div class="test-grid">
+              <textarea id="sensenova-test-prompt" maxlength="2000" aria-label="测试提示词" placeholder="请输入任意测试提示词"></textarea>
+              <button id="sensenova-test-button" class="primary" disabled>发送一次测试请求</button>
+            </div>
+            <div id="sensenova-test-result" class="result hidden" role="status"></div>
+            <footer>测试提示词会发送给 SenseNova 并可能消耗额度；响应仅显示在本地页面，网关日志不记录提示词或响应内容。</footer>
+          </details>
+        </section>
+      </section>
+
+      <section id="internlm-view" aria-labelledby="internlm-page-title" hidden>
+        <div class="provider-page-heading">
+          <div class="provider-heading">
+            <div>
+              <h2 id="internlm-page-title">InternLM（书生·端砚）</h2>
+              <p>独立的 InternLM 凭据、模型目录与连接测试页面。</p>
+            </div>
+          </div>
+          <button class="manage-provider-credentials" type="button" data-open-vault>管理本机凭据</button>
+        </div>
+        <!-- InternLM 接入向导 -->
+        <section id="internlm-flow" class="flow-panel" aria-labelledby="internlm-flow-title">
+          <div class="provider-heading">
+            <h3 id="internlm-flow-title">InternLM (书生·端砚)</h3>
+            <p>上海 AI 实验室训练 · OpenAI 兼容 API<br>API 地址：<code>https://discovery-api.intern-ai.org.cn/v1</code></p>
+            <span id="internlm-provider-state" class="provider-state">检查凭据状态中…</span>
+          </div>
+          <p class="flow-intro">先获取服务商 Key，再存入本机加密凭据库。模型连接验证与目录接入将在凭据保存后续接。</p>
+          <ol class="flow-steps" aria-label="InternLM 接入步骤">
+            <li class="flow-step" data-internlm-flow-step="1" aria-current="step"><span class="flow-step-number">第 1 步</span>获取服务商 Key</li>
+            <li class="flow-step" data-internlm-flow-step="2"><span class="flow-step-number">第 2 步</span>在本机管理凭据</li>
+            <li class="flow-step" data-internlm-flow-step="3"><span class="flow-step-number">第 3 步</span>验证并选择模型</li>
+          </ol>
+          <div id="internlm-flow-content" class="flow-content" aria-live="polite">
+            <h4>先从 InternLM 获取 API Key</h4>
+            <p>登录你自己的 InternLM 账号，在服务商控制台申请 API Key，并确认账号权限、计费或免费额度说明。</p>
+            <p>获取 Key 后先保存在安全位置。不要把它发给他人，也不要粘贴到聊天或截图里。</p>
+            <p><a href="https://discovery.intern-ai.org.cn/token-plan/" target="_blank" rel="noreferrer">前往 InternLM 官网申请 API Key</a></p>
+          </div>
+          <div class="prototype-notice">主密码不会写入磁盘。忘记主密码后无法恢复已保存的 Key；本机账户或恶意软件仍可能影响运行中服务的安全。</div>
+          <div class="flow-actions">
+            <button id="internlm-flow-back" type="button" hidden>上一步</button>
+            <button id="internlm-flow-next" class="primary" type="button">下一步</button>
+            <button id="internlm-flow-close" type="button">关闭向导</button>
+          </div>
+          <div id="internlm-provider-status" class="provider-status" role="status" aria-live="polite"></div>
+        </section>
+
+        <!-- InternLM (书生·端砚) 模型目录与测试区域 -->
+        <section id="internlm-catalog-section" class="flow-panel" aria-labelledby="internlm-catalog-title" hidden>
+          <div class="provider-heading">
+            <h3 id="internlm-catalog-title">InternLM (书生·端砚) 模型目录</h3>
+            <p>凭据库解锁且已配置 Key 后，可加载模型目录并测试连接。</p>
+          </div>
+          <div class="bar">
+            <button id="load-internlm-catalog" class="primary" type="button">加载 InternLM 模型目录</button>
+            <span id="internlm-catalog-status" class="muted" role="status"></span>
+          </div>
+          <div class="bar">
+            <input id="internlm-search" type="search" placeholder="搜索模型或能力标签" aria-label="搜索 InternLM 模型">
+          </div>
+          <div class="settings selection-toolbar">
+            <span id="internlm-selection-status" class="muted">点击卡片选中；按住鼠标左键拖框，Shift 点击可范围多选。</span>
+            <div class="selection-actions">
+              <button id="internlm-select-visible-button" type="button">全选当前结果</button>
+              <button id="internlm-selected-only-button" type="button" aria-pressed="false">仅看已选</button>
+              <button id="internlm-top-test-button" class="primary" aria-label="测试已选模型" disabled>测试</button>
+              <button id="internlm-top-stop-button" aria-label="停止批量测试" hidden>停止测试</button>
+              <button id="internlm-clear-selection" aria-label="清空测试选择" disabled>清空选择</button>
+            </div>
+          </div>
+          <section id="internlm-catalog" class="catalog" role="group" aria-label="InternLM 模型列表，可多选测试">
+            <div class="empty">点击上方按钮加载 InternLM 模型目录</div>
+          </section>
+
+          <details class="panel" style="margin-top: 16px;">
+            <summary class="section-title" style="cursor: pointer; user-select: none;">问答测试（批量测试将使用此提示词）</summary>
+            <div class="test-grid">
+              <textarea id="internlm-test-prompt" maxlength="2000" aria-label="测试提示词" placeholder="请输入任意测试提示词"></textarea>
+              <button id="internlm-test-button" class="primary" disabled>发送一次测试请求</button>
+            </div>
+            <div id="internlm-test-result" class="result hidden" role="status"></div>
+            <footer>测试提示词会发送给 InternLM 并可能消耗额度；响应仅显示在本地页面，网关日志不记录提示词或响应内容。</footer>
+          </details>
+        </section>
+      </section>
   </main>
   <dialog id="setup-dialog" class="setup-dialog" aria-labelledby="setup-title">
     <div class="setup-dialog-header">
@@ -620,1193 +439,15 @@
     <div class="selection-dock-inner">
       <div class="selection-dock-copy">
         <span id="dock-selection-count" class="selection-dock-count">已选择 0 个模型</span>
-        <span class="selection-dock-note">将使用下方【问答测试】的提示词执行测试</span>
+        <span id="dock-prompt-preview" class="selection-dock-note">测试将使用问答测试中的提示词。</span>
       </div>
+      <button id="dock-prompt-button" type="button">编辑测试提示词</button>
       <button id="dock-test-button" class="primary" aria-label="开始测试" disabled>开始测试</button>
       <button id="dock-stop-button" aria-label="停止批量测试" hidden>停止测试</button>
       <button id="dock-clear-button" aria-label="清空测试选择" disabled>清空选择</button>
     </div>
   </aside>
   <svg id="selection-lasso" aria-hidden="true"><rect hidden></rect></svg>
-  <script>
-    const $ = (selector) => document.querySelector(selector);
-    const state = {
-      models: [],
-      catalogLoaded: false,
-      testSelection: new Set(),
-      selectionAnchor: '',
-      testResults: new Map(),
-      testing: false,
-      stopRequested: false,
-      providerFlowStep: 1,
-      vault: null,
-      theme: document.documentElement.dataset.theme === 'light' ? 'light' : 'dark',
-      key: sessionStorage.getItem('gateway-local-key') || '',
-    };
-    $('#local-key').value = state.key;
-
-    function updateThemeToggle() {
-      const nextTheme = state.theme === 'light' ? '暗色' : '亮色';
-      const label = `切换到${nextTheme}主题`;
-      const button = $('#theme-toggle');
-      button.setAttribute('aria-label', label);
-      button.title = label;
-      $('#theme-icon').textContent = state.theme === 'light' ? '☾' : '☀';
-    }
-
-    $('#theme-toggle').addEventListener('click', () => {
-      state.theme = state.theme === 'dark' ? 'light' : 'dark';
-      if (state.theme === 'dark') document.documentElement.removeAttribute('data-theme');
-      else document.documentElement.dataset.theme = state.theme;
-      updateThemeToggle();
-      try {
-        localStorage.setItem('gateway-theme', state.theme);
-      } catch (error) {
-        console.warn('Could not save theme preference:', error);
-      }
-    });
-
-    function apiHeaders(extra = {}) {
-      return { ...extra, ...(state.key ? { Authorization: `Bearer ${state.key}` } : {}) };
-    }
-
-    async function vaultRequest(path, { method = 'GET', body } = {}) {
-      const headers = apiHeaders(body === undefined ? {} : { 'Content-Type': 'application/json' });
-      const response = await fetch(path, {
-        method,
-        headers,
-        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-        cache: 'no-store',
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        const error = new Error(payload.error?.message || `请求失败（HTTP ${response.status}）`);
-        error.status = response.status;
-        throw error;
-      }
-      return payload;
-    }
-
-    function renderVaultStatus() {
-      const vault = state.vault;
-      const initialized = Boolean(vault?.initialized);
-      const unlocked = Boolean(vault?.unlocked);
-      $('#vault-locked').hidden = unlocked;
-      $('#vault-unlocked').hidden = !unlocked;
-      $('#vault-password-label').textContent = initialized ? '凭据库主密码' : '设置主密码（至少 12 个字符）';
-      $('#vault-password').placeholder = initialized ? '输入主密码以解锁' : '首次设置至少 12 个字符';
-      $('#vault-password').minLength = initialized ? 1 : 12;
-      $('#vault-unlock-button').textContent = initialized ? '解锁凭据库' : '创建并解锁凭据库';
-
-      const sensenova = vault?.providers?.find((provider) => provider.id === 'sensenova');
-      $('#sensenova-provider-state').textContent = sensenova?.configured
-        ? 'Key 已加密保存'
-        : '尚未配置 Key';
-      $('#delete-sensenova-key').disabled = !sensenova?.configured;
-      if (!unlocked) {
-        $('#vault-lock-state').textContent = initialized
-          ? '凭据库已锁定；解锁后才能使用或管理 Key。'
-          : '尚未创建凭据库。';
-      }
-    }
-
-    async function loadVaultStatus() {
-      $('#vault-lock-state').textContent = '正在检查本机凭据库…';
-      try {
-        state.vault = await vaultRequest('/api/vault/status');
-        renderVaultStatus();
-      } catch (error) {
-        state.vault = null;
-        $('#sensenova-provider-state').textContent = '凭据状态不可用';
-        $('#vault-lock-state').textContent = error.status === 401
-          ? '本地网关要求访问口令。请先在 Kilo 页面顶部输入 LOCAL_KEY，再返回此处。'
-          : `读取凭据库状态失败：${error.message}`;
-      }
-    }
-
-    function showView(name) {
-      const views = {
-        home: $('#home-view'),
-        kilo: $('#kilo-view'),
-        providers: $('#providers-view'),
-      };
-      for (const [viewName, element] of Object.entries(views)) {
-        element.hidden = viewName !== name;
-      }
-      $('#home-button').hidden = name === 'home';
-      $('#catalog-status').hidden = name !== 'kilo';
-      window.scrollTo({ top: 0, behavior: 'auto' });
-      if (name === 'kilo' && !state.catalogLoaded) loadCatalog();
-      if (name === 'providers') loadVaultStatus();
-    }
-
-    const providerFlowStages = [
-      {
-        title: '先从 SenseNova 获取 API Key',
-        body: '<p>登录你自己的 SenseNova 账号，在服务商控制台申请 API Key，并确认账号权限、计费或免费额度说明。</p><p>获取 Key 后先保存在安全位置。不要把它发给他人，也不要粘贴到聊天或截图里。</p><p><a href="https://www.sensenova.cn/token-plan" target="_blank" rel="noreferrer">前往 SenseNova 官网申请 API Key</a></p>',
-      },
-      {
-        title: '凭据由本机管理',
-        body: '<p>在“本机加密凭据库”中首次设置主密码并解锁，然后输入 SenseNova Key 并加密保存。主密码不保存在磁盘；忘记主密码无法恢复 Key。</p><p>客户端使用本地网关地址；上游服务商 Key 与可选的本地网关访问口令是两种不同凭据。</p>',
-      },
-      {
-        title: '验证连接并选择模型',
-        body: '<p>接入完成后，网关会用授权凭据读取模型目录。你可以先查看模型，再手动测试选中的模型。</p><p>首版将由你明确选择 SenseNova 模型，不会在失败时悄悄切换到 Kilo 或其他服务商。</p><p>建议验证顺序：读取模型目录 → 测试一次对话 → 复制本地网关地址和模型 ID 到客户端。</p>',
-      },
-    ];
-
-    function renderProviderFlowStep() {
-      const step = state.providerFlowStep;
-      const stage = providerFlowStages[step - 1];
-      for (const item of document.querySelectorAll('[data-flow-step]')) {
-        const isCurrent = Number(item.dataset.flowStep) === step;
-        if (isCurrent) item.setAttribute('aria-current', 'step');
-        else item.removeAttribute('aria-current');
-      }
-      $('#flow-content').innerHTML = `<h4>${stage.title}</h4>${stage.body}`;
-      $('#flow-back').hidden = step === 1;
-      $('#flow-next').textContent = step === providerFlowStages.length ? '完成流程说明' : '下一步';
-      $('#provider-status').textContent = '';
-    }
-
-    $('#open-kilo').addEventListener('click', () => showView('kilo'));
-    $('#open-providers').addEventListener('click', () => showView('providers'));
-    $('#home-button').addEventListener('click', () => showView('home'));
-    $('#open-sensenova-flow').addEventListener('click', () => {
-      state.providerFlowStep = 1;
-      $('#sensenova-flow').hidden = false;
-      renderProviderFlowStep();
-      $('#sensenova-flow').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-    $('#flow-next').addEventListener('click', () => {
-      if (state.providerFlowStep < providerFlowStages.length) {
-        state.providerFlowStep++;
-        renderProviderFlowStep();
-      } else {
-        $('#provider-status').textContent = 'Key 可在上方本机加密凭据库中保存；连接测试和模型目录接入将在下一步完成。';
-      }
-    });
-    $('#flow-back').addEventListener('click', () => {
-      if (state.providerFlowStep > 1) {
-        state.providerFlowStep--;
-        renderProviderFlowStep();
-      }
-    });
-    $('#flow-close').addEventListener('click', () => {
-      $('#sensenova-flow').hidden = true;
-      $('#provider-status').textContent = '';
-    });
-    $('#vault-unlock-button').addEventListener('click', async () => {
-      const password = $('#vault-password').value;
-      const initialized = Boolean(state.vault?.initialized);
-      const status = $('#vault-lock-state');
-      const button = $('#vault-unlock-button');
-      if (!password || (!initialized && password.length < 12)) {
-        status.textContent = initialized ? '请输入主密码。' : '主密码至少需要 12 个字符。';
-        return;
-      }
-      button.disabled = true;
-      status.textContent = initialized ? '正在解锁凭据库…' : '正在创建加密凭据库…';
-      try {
-        state.vault = await vaultRequest(initialized ? '/api/vault/unlock' : '/api/vault/setup', {
-          method: 'POST',
-          body: { password },
-        });
-        renderVaultStatus();
-        $('#vault-key-status').textContent = '凭据库已解锁。';
-      } catch (error) {
-        status.textContent = error.message || '操作失败，请重试。';
-      } finally {
-        $('#vault-password').value = '';
-        button.disabled = false;
-      }
-    });
-    $('#save-sensenova-key').addEventListener('click', async () => {
-      const input = $('#sensenova-api-key');
-      const key = input.value.trim();
-      const status = $('#vault-key-status');
-      const button = $('#save-sensenova-key');
-      if (!key) {
-        status.textContent = '请输入 SenseNova API Key。';
-        return;
-      }
-      button.disabled = true;
-      status.textContent = '正在加密并保存…';
-      try {
-        state.vault = await vaultRequest('/api/vault/providers/sensenova', {
-          method: 'PUT',
-          body: { key },
-        });
-        renderVaultStatus();
-        status.textContent = 'Key 已加密保存在本机；页面不会回显或持久化它。';
-      } catch (error) {
-        status.textContent = error.message || '保存失败，请重试。';
-      } finally {
-        input.value = '';
-        button.disabled = false;
-      }
-    });
-    $('#delete-sensenova-key').addEventListener('click', async () => {
-      if (!window.confirm('确定删除本机保存的 SenseNova Key 吗？')) return;
-      const status = $('#vault-key-status');
-      const button = $('#delete-sensenova-key');
-      button.disabled = true;
-      status.textContent = '正在删除…';
-      try {
-        state.vault = await vaultRequest('/api/vault/providers/sensenova', { method: 'DELETE' });
-        renderVaultStatus();
-        status.textContent = '已删除本机保存的 SenseNova Key。';
-      } catch (error) {
-        status.textContent = error.message || '删除失败，请重试。';
-      }
-    });
-    $('#vault-lock-button').addEventListener('click', async () => {
-      const button = $('#vault-lock-button');
-      button.disabled = true;
-      $('#vault-key-status').textContent = '正在锁定凭据库…';
-      $('#sensenova-api-key').value = '';
-      try {
-        state.vault = await vaultRequest('/api/vault/lock', { method: 'POST' });
-        renderVaultStatus();
-        $('#vault-lock-state').textContent = '凭据库已锁定。';
-      } catch (error) {
-        $('#vault-key-status').textContent = error.message || '锁定失败，请重试。';
-      } finally {
-        button.disabled = false;
-      }
-    });
-
-    function showResult(message, good) {
-      const box = $('#test-result');
-      box.className = `result ${good ? 'good' : 'bad'}`;
-      box.textContent = message;
-    }
-
-    function errorMessage(payload) {
-      if (typeof payload === 'string') {
-        try { return errorMessage(JSON.parse(payload)); } catch { return payload.slice(0, 1200); }
-      }
-      if (!payload || typeof payload !== 'object') return '';
-      const error = payload.error;
-      return [
-        typeof error === 'string' ? error : error?.message,
-        payload.message,
-        typeof error?.details === 'string' ? error.details : '',
-        typeof payload.details === 'string' ? payload.details : '',
-      ].find((value) => typeof value === 'string' && value.trim())?.trim().slice(0, 1200) || '';
-    }
-
-    function formatRetryAfter(value) {
-      if (!value) return '';
-      const seconds = Number(value);
-      if (Number.isFinite(seconds)) return `${Math.max(0, Math.ceil(seconds))} 秒后再试`;
-      const date = new Date(value);
-      return Number.isNaN(date.getTime()) ? value : `约 ${date.toLocaleTimeString()} 后再试`;
-    }
-
-    function failureMessage(status, payload, headers) {
-      const message = errorMessage(payload);
-      let diagnosis;
-      if (status === 401 && /local gateway/i.test(message)) {
-        diagnosis = ['本地访问口令不正确或未填写', '请检查页面顶部填写的本地口令。'];
-      } else if (status === 400) {
-        diagnosis = ['模型暂时无法接受这次请求', '刷新模型列表，或换一个模型再试。'];
-      } else if (status === 401) {
-        diagnosis = ['上游服务没有通过认证', '检查该服务当前是否要求账号或授权。'];
-      } else if (status === 403) {
-        diagnosis = ['服务商拒绝了这次请求', '可能与账号、地区或模型权限有关，请查看服务商说明。'];
-      } else if (status === 404) {
-        diagnosis = ['找不到这个模型或服务地址', '刷新模型列表后重新选择模型。'];
-      } else if (status === 408 || status === 504) {
-        diagnosis = ['模型响应超时', '稍后重试，或换一个模型。'];
-      } else if (status === 429) {
-        const retryAfter = formatRetryAfter(headers?.get('retry-after'));
-        diagnosis = ['访问太频繁或当前额度已用完', retryAfter ? `请${retryAfter}。` : '请稍后再试，或换一个模型。'];
-      } else if (status >= 500) {
-        diagnosis = ['模型服务暂时出了问题', '请稍后重试，或换一个模型。'];
-      } else {
-        diagnosis = ['这次请求没有成功', '请稍后重试；如果仍然失败，可以查看下面的技术详情。'];
-      }
-
-      const lines = [`HTTP ${status}`, diagnosis[1]];
-      if (message) lines.push(`返回信息：${message}`);
-      const retryAfter = formatRetryAfter(headers?.get('retry-after'));
-      if (retryAfter && status !== 429) lines.push(`Retry-After：${retryAfter}`);
-      const requestId = headers?.get('x-request-id');
-      if (requestId) lines.push(`上游请求 ID：${requestId}`);
-      if (payload && typeof payload === 'object') {
-        const raw = JSON.stringify(payload, null, 2);
-        if (raw && raw !== '{}' && raw !== JSON.stringify({ error: { message } }, null, 2)) {
-          lines.push(`\n详细响应：\n${raw.slice(0, 1600)}${raw.length > 1600 ? '\n（详情已截断）' : ''}`);
-        }
-      } else if (typeof payload === 'string' && payload.trim() && payload !== message) {
-        lines.push(`\n详细响应：\n${payload.slice(0, 1600)}${payload.length > 1600 ? '\n（详情已截断）' : ''}`);
-      }
-      return { summary: diagnosis[0], details: lines.join('\n') };
-    }
-
-    async function loadCatalog() {
-      const status = $('#catalog-status');
-      const button = $('#refresh');
-      button.disabled = true;
-      status.textContent = '正在读取模型目录…';
-      try {
-        const response = await fetch('/api/catalog', { headers: apiHeaders() });
-        const raw = await response.text();
-        let payload;
-        try { payload = JSON.parse(raw); } catch { payload = raw; }
-        if (!response.ok) {
-          status.textContent = '目录加载失败';
-          $('#catalog').replaceChildren();
-          const empty = document.createElement('div');
-          empty.className = 'empty';
-          const failure = failureMessage(response.status, payload, response.headers);
-          empty.textContent = `${failure.summary}\n${failure.details}`;
-          $('#catalog').append(empty);
-          return;
-        }
-        state.models = payload.data || [];
-        state.catalogLoaded = true;
-        const availableIds = new Set(state.models.map((model) => model.id));
-        state.testSelection = new Set([...state.testSelection].filter((id) => availableIds.has(id)));
-        if (!availableIds.has(state.selectionAnchor)) state.selectionAnchor = '';
-        status.textContent = `目录更新于 ${new Date(payload.checked_at).toLocaleTimeString()} · ${state.models.length} 个模型`;
-        renderCatalog();
-        updateTestControls();
-      } catch (error) {
-        status.textContent = '目录加载失败';
-        $('#catalog').replaceChildren();
-        const empty = document.createElement('div');
-        empty.className = 'empty';
-        empty.textContent = `${error.message}。确认网关已启动、网络可访问上游；如配置了 LOCAL_KEY，请填写本地口令。`;
-        $('#catalog').append(empty);
-      } finally {
-        button.disabled = false;
-      }
-    }
-
-    function visibleModels() {
-      const query = $('#search').value.trim().toLowerCase();
-      const freeOnly = $('#free-only').checked;
-      return state.models.filter((model) => {
-        const text = `${model.id} ${model.name || ''} ${model.owned_by || ''} ${(model.tags || []).join(' ')}`.toLowerCase();
-        return text.includes(query) && (!freeOnly || model.isFree === true);
-      });
-    }
-
-    function updateTestControls() {
-      const count = state.testSelection.size;
-      $('#selection-status').textContent = count
-        ? `已选择 ${count} 个模型。点击卡片可逐个选中 / 取消，也可按住鼠标左键拖动方框加入选择；高级：Shift 点击范围多选，Ctrl+A 全选列表。`
-        : '点击卡片逐个选中 / 取消，也可按住鼠标左键拖动方框选中；高级：Shift 点击范围多选，Ctrl+A 全选列表。';
-      const dock = $('#selection-dock');
-      dock.classList.toggle('visible', count > 0);
-      document.body.classList.toggle('has-selection-dock', count > 0);
-      $('#dock-selection-count').textContent = `已选择 ${count} 个模型`;
-
-      for (const [id, label] of [['top-test-button', '测试'], ['dock-test-button', '开始测试']]) {
-        const button = $(`#${id}`);
-        button.disabled = state.testing || count === 0;
-        button.textContent = state.testing ? '测试中…' : label;
-      }
-      for (const id of ['top-stop-button', 'dock-stop-button']) {
-        const button = $(`#${id}`);
-        button.hidden = !state.testing;
-        button.disabled = !state.testing || state.stopRequested;
-        button.textContent = state.stopRequested ? '正在停止…' : '停止测试';
-      }
-      $('#test-button').disabled = state.testing || count === 0;
-      $('#test-button').textContent = state.testing
-        ? '按顺序测试中…'
-        : count > 0 ? `逐个测试已选模型（${count}）` : '请选择模型';
-      $('#clear-selection').disabled = state.testing || count === 0;
-      $('#dock-clear-button').disabled = state.testing || count === 0;
-    }
-
-    function selectTestModel(id, { range = false } = {}) {
-      if (state.testing) return;
-      const list = visibleModels();
-      const currentIndex = list.findIndex((model) => model.id === id);
-      if (currentIndex < 0) return;
-
-      if (range) {
-        const anchorIndex = list.findIndex((model) => model.id === state.selectionAnchor);
-        const start = anchorIndex < 0 ? currentIndex : Math.min(anchorIndex, currentIndex);
-        const end = anchorIndex < 0 ? currentIndex : Math.max(anchorIndex, currentIndex);
-        for (const model of list.slice(start, end + 1)) state.testSelection.add(model.id);
-      } else if (state.testSelection.has(id)) {
-        state.testSelection.delete(id);
-      } else {
-        state.testSelection.add(id);
-      }
-
-      state.selectionAnchor = id;
-      renderCatalog();
-      updateTestControls();
-    }
-
-    const catalog = $('#catalog');
-    const lassoRect = $('#selection-lasso rect');
-    let lasso = null;
-    let suppressLassoClick = false;
-    let clearLassoClickSuppression;
-
-    function renderLassoRect() {
-      if (!lasso?.active) return;
-      lassoRect.setAttribute('x', String(Math.min(lasso.startX, lasso.endX)));
-      lassoRect.setAttribute('y', String(Math.min(lasso.startY, lasso.endY)));
-      lassoRect.setAttribute('width', String(Math.abs(lasso.endX - lasso.startX)));
-      lassoRect.setAttribute('height', String(Math.abs(lasso.endY - lasso.startY)));
-      lassoRect.hidden = false;
-    }
-
-    function finishLasso() {
-      if (!lasso) return;
-      const completed = lasso;
-      lasso = null;
-      document.body.classList.remove('is-lasso-pressed');
-      document.body.classList.remove('is-lassoing');
-      lassoRect.hidden = true;
-      for (const attribute of ['x', 'y', 'width', 'height']) lassoRect.removeAttribute(attribute);
-      if (!completed.active || state.testing) return;
-
-      let changed = false;
-      for (const card of catalog.querySelectorAll('.card')) {
-        const rect = card.getBoundingClientRect();
-        const left = Math.min(completed.startX, completed.endX);
-        const right = Math.max(completed.startX, completed.endX);
-        const top = Math.min(completed.startY, completed.endY);
-        const bottom = Math.max(completed.startY, completed.endY);
-        if (rect.right < left || rect.left > right || rect.bottom < top || rect.top > bottom) continue;
-        const id = card.dataset.modelId;
-        if (id && !state.testSelection.has(id)) {
-          state.testSelection.add(id);
-          state.selectionAnchor = id;
-          changed = true;
-        }
-      }
-      if (changed) {
-        renderCatalog();
-        updateTestControls();
-      }
-    }
-
-    document.addEventListener('pointerdown', (event) => {
-      if (event.pointerType !== 'mouse' || event.button !== 0 || state.testing
-        || event.target.closest('button, input, select, textarea, details, summary, a, [contenteditable="true"]')) return;
-      lasso = {
-        pointerId: event.pointerId,
-        startX: event.clientX,
-        startY: event.clientY,
-        endX: event.clientX,
-        endY: event.clientY,
-        active: false,
-      };
-      document.body.classList.add('is-lasso-pressed');
-    });
-
-    document.addEventListener('pointermove', (event) => {
-      if (!lasso || event.pointerId !== lasso.pointerId) return;
-      if (!lasso.active) {
-        const dx = event.clientX - lasso.startX;
-        const dy = event.clientY - lasso.startY;
-        if (dx * dx + dy * dy < 36) return;
-        lasso.active = true;
-        document.body.classList.add('is-lassoing');
-      }
-      lasso.endX = event.clientX;
-      lasso.endY = event.clientY;
-      renderLassoRect();
-      event.preventDefault();
-    });
-
-    document.addEventListener('pointerup', (event) => {
-      if (!lasso || event.pointerId !== lasso.pointerId) return;
-      lasso.endX = event.clientX;
-      lasso.endY = event.clientY;
-      const wasActive = lasso.active;
-      renderLassoRect();
-      finishLasso();
-      if (wasActive) {
-        suppressLassoClick = true;
-        clearTimeout(clearLassoClickSuppression);
-        clearLassoClickSuppression = setTimeout(() => { suppressLassoClick = false; }, 0);
-      }
-    });
-    document.addEventListener('pointercancel', (event) => {
-      if (lasso?.pointerId === event.pointerId) finishLasso();
-    });
-
-    function appendCardResult(card, result) {
-      if (!result) return;
-      const box = document.createElement('div');
-      box.className = `card-result${result.status === 'success' ? ' good' : result.status === 'failed' ? ' bad' : ''}`;
-      const stateLabel = document.createElement('div');
-      stateLabel.className = 'result-state';
-      const labels = { queued: '等待测试', running: '测试中', success: '测试成功', failed: '测试失败', stopped: '已停止' };
-      stateLabel.textContent = `${labels[result.status] || result.status}${result.elapsed === undefined ? '' : ` · ${result.elapsed.toFixed(1)} 秒`}`;
-      box.append(stateLabel);
-
-      if (result.status === 'success') {
-        const answer = result.answer || '模型返回了空内容。';
-        const preview = document.createElement('p');
-        preview.textContent = answer.slice(0, 280);
-        box.append(preview);
-        if (answer.length > 280) {
-          const details = document.createElement('details');
-          const summary = document.createElement('summary');
-          summary.textContent = '查看完整回复';
-          const fullAnswer = document.createElement('p');
-          fullAnswer.textContent = answer;
-          details.append(summary, fullAnswer);
-          box.append(details);
-        }
-      } else if (result.status === 'failed') {
-        const error = typeof result.error === 'string'
-          ? { summary: result.error, details: '' }
-          : result.error;
-        const preview = document.createElement('p');
-        preview.textContent = error.summary;
-        box.append(preview);
-        if (error.details) {
-          const details = document.createElement('details');
-          const summary = document.createElement('summary');
-          summary.textContent = '查看技术详情';
-          const technicalDetails = document.createElement('p');
-          technicalDetails.textContent = error.details;
-          details.append(summary, technicalDetails);
-          box.append(details);
-        }
-      }
-      card.append(box);
-    }
-
-    function formatTokens(value) {
-      const count = Number(value);
-      return Number.isFinite(count) && count > 0 ? `${count.toLocaleString()} tokens` : '';
-    }
-
-    function modalityLabel(value) {
-      const labels = { text: '文本', image: '图片', video: '视频', audio: '音频' };
-      return labels[value] || value;
-    }
-
-    function capabilityLabel(value) {
-      const labels = {
-        reasoning: '推理',
-        coding: '编程',
-        longctx: '长上下文',
-        general: '通用',
-        agentic: 'Agent',
-        benchmark: '基准测试',
-        speed: '速度',
-        small: '轻量',
-        multimodal: '多模态',
-        vision: '视觉',
-        router: '自动路由',
-        safety: '内容安全',
-      };
-      return labels[value] || value;
-    }
-
-    function appendMeta(card, label, value) {
-      if (!value) return;
-      const item = document.createElement('p');
-      item.className = 'meta';
-      item.textContent = `${label}：${value}`;
-      card.append(item);
-    }
-
-    async function copyText(text) {
-      if (navigator.clipboard?.writeText) {
-        try {
-          await navigator.clipboard.writeText(text);
-          return;
-        } catch {
-          // Fall back for browsers that expose the Clipboard API but deny permission.
-        }
-      }
-
-      const input = document.createElement('textarea');
-      input.value = text;
-      input.setAttribute('readonly', '');
-      input.style.position = 'fixed';
-      input.style.opacity = '0';
-      document.body.append(input);
-      input.select();
-      const copied = document.execCommand('copy');
-      input.remove();
-      if (!copied) throw new Error('浏览器不允许访问剪贴板');
-    }
-
-    function setupBaseUrl(client) {
-      const base = window.location.origin.replace(/\/+$/, '');
-      return ['claude-code', 'cc-switch-claude'].includes(client) ? base : `${base}/v1`;
-    }
-
-    const SETUP_CLIENT_GROUPS = {
-      '聊天与办公': ['chatbox', 'cherry-studio', 'workbuddy', 'loomy', 'workswarm', 'qclaw'],
-      '编程助手': ['cline', 'continue-json', 'trae', 'deepseek-harness', 'opencode', 'hermes-agent', 'openfic', 'github-copilot-byok', 'vscode-copilot-chat', 'claude-code'],
-      '配置切换器': ['cc-switch-claude', 'cc-switch-codex'],
-      '其他': ['openai-compatible'],
-    };
-    const SETUP_CLIENT_META = {
-      'claude-code': { icon: 'CC', description: '通过 Anthropic Messages 接口连接 Claude Code。', protocol: 'Anthropic' },
-      cline: { icon: 'CL', description: '在 Cline 的自定义提供方表单中填写 OpenAI 兼容接口。', protocol: 'OpenAI 兼容' },
-      'continue-json': { icon: 'CO', description: '将生成的模型条目合并到 Continue 配置文件。', protocol: '配置文件' },
-      chatbox: { icon: 'CB', description: '在 Chatbox 添加自定义供应商并选择模型。', protocol: 'OpenAI 兼容' },
-      'cherry-studio': { icon: 'CS', description: '在 Cherry Studio 添加供应商并获取或选择模型。', protocol: 'OpenAI 兼容' },
-      workbuddy: { icon: 'WB', description: '在 WorkBuddy 的智能体模型管理中添加自定义模型。', protocol: 'OpenAI 兼容' },
-      trae: { icon: 'TR', description: '登录 Trae 后添加自定义模型，保存后在对话中选择。', protocol: 'OpenAI 兼容' },
-      'deepseek-harness': { icon: 'DH', description: '添加自定义模型 API，并从接口获取可用模型。', protocol: 'OpenAI 兼容' },
-      'cc-switch-claude': { icon: 'CC', description: '通过 CC-Switch 管理 Claude Code 的自定义供应商。', protocol: 'Anthropic' },
-      opencode: { icon: 'OC', description: '添加自定义提供商，再将模型加入 OpenCode。', protocol: 'OpenAI 兼容' },
-      workswarm: { icon: 'WS', description: '在 WorkSwarm 模型配置中添加 OpenAI 供应商。', protocol: 'OpenAI 兼容' },
-      loomy: { icon: 'LO', description: '添加服务商，获取模型后应用到 Loomy。', protocol: 'OpenAI 兼容' },
-      'hermes-agent': { icon: 'HA', description: '添加自定义端点，再从模型列表中选择。', protocol: 'OpenAI 兼容' },
-      openfic: { icon: 'OF', description: '先创建连接，再添加语言模型。', protocol: 'OpenAI 兼容' },
-      'github-copilot-byok': { icon: 'GH', description: '使用 GitHub Copilot 的自带密钥功能添加模型。', protocol: 'Chat Completions' },
-      'vscode-copilot-chat': { icon: 'VS', description: '从 VS Code Copilot Chat 的模型管理中添加自定义端点。', protocol: 'Chat Completions' },
-      qclaw: { icon: 'Q', description: '在 QClaw 的自定义大模型页面填写连接信息。', protocol: 'OpenAI 兼容' },
-      'cc-switch-codex': { icon: 'CX', description: '通过 CC-Switch 配置并路由到 Codex。', protocol: 'Codex' },
-      'openai-compatible': { icon: 'API', description: '用于支持 OpenAI 兼容接口的其他客户端。', protocol: 'OpenAI 兼容' },
-    };
-
-    function renderSetupClients() {
-      const list = $('#setup-client-list');
-      const selected = $('#setup-client').value;
-      const query = $('#setup-client-search').value.trim().toLowerCase();
-      list.replaceChildren();
-      for (const [group, clientIds] of Object.entries(SETUP_CLIENT_GROUPS)) {
-        const options = clientIds
-          .map((id) => $('#setup-client').querySelector(`option[value="${id}"]`))
-          .filter((option) => option && option.textContent.toLowerCase().includes(query));
-        if (!options.length) continue;
-        const section = document.createElement('section');
-        section.className = 'setup-client-group';
-        const heading = document.createElement('h4');
-        heading.className = 'setup-client-group-title';
-        heading.textContent = group;
-        section.append(heading);
-        for (const option of options) {
-          const meta = SETUP_CLIENT_META[option.value];
-          const button = document.createElement('button');
-          button.className = 'setup-client-option';
-          button.type = 'button';
-          button.dataset.client = option.value;
-          button.setAttribute('aria-current', String(option.value === selected));
-          button.setAttribute('aria-label', option.textContent);
-          const icon = document.createElement('span');
-          icon.className = 'setup-client-icon';
-          icon.setAttribute('aria-hidden', 'true');
-          icon.textContent = meta.icon;
-          const name = document.createElement('span');
-          name.className = 'setup-client-name';
-          name.textContent = option.textContent;
-          button.append(icon, name);
-          button.addEventListener('click', () => {
-            $('#setup-client').value = option.value;
-            $('#setup-client').dispatchEvent(new Event('change'));
-          });
-          section.append(button);
-        }
-        list.append(section);
-      }
-      if (!list.childElementCount) {
-        const empty = document.createElement('p');
-        empty.className = 'setup-client-group-title';
-        empty.textContent = '没有匹配的客户端';
-        list.append(empty);
-      }
-      list.querySelector('.setup-client-option[aria-current="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    }
-
-    function shellQuote(value, shell) {
-      if (shell === 'powershell') return `'${value.replace(/'/g, "''")}'`;
-      return `'${value.replace(/'/g, "'\\''")}'`;
-    }
-
-    function setupConfiguration({ maskKey = false } = {}) {
-      const client = $('#setup-client').value;
-      const baseUrl = $('#setup-base-url').value.trim();
-      const apiKey = $('#setup-api-key').value.trim() || 'dummy';
-      const model = $('#setup-model-id').value;
-      const visibleKey = maskKey && apiKey !== 'dummy' ? '••••••••' : apiKey;
-      if (client === 'claude-code') {
-        return [
-          '# 在 PowerShell 当前终端中运行，然后启动 Claude Code',
-          `$env:ANTHROPIC_BASE_URL = ${shellQuote(baseUrl, 'powershell')}`,
-          `$env:ANTHROPIC_AUTH_TOKEN = ${shellQuote(visibleKey, 'powershell')}`,
-          `$env:ANTHROPIC_MODEL = ${shellQuote(model, 'powershell')}`,
-          'claude',
-          '',
-          '# macOS / Linux（bash 或 zsh）',
-          `export ANTHROPIC_BASE_URL=${shellQuote(baseUrl, 'shell')}`,
-          `export ANTHROPIC_AUTH_TOKEN=${shellQuote(visibleKey, 'shell')}`,
-          `export ANTHROPIC_MODEL=${shellQuote(model, 'shell')}`,
-          'claude',
-        ].join('\n');
-      }
-      if (client === 'continue-json') {
-        return JSON.stringify({
-          models: [{
-            title: model,
-            provider: 'openai',
-            model,
-            apiKey: visibleKey,
-            apiBase: baseUrl,
-          }],
-        }, null, 2);
-      }
-      const fieldLines = [
-        `Base URL：${baseUrl}`,
-        `API Key：${visibleKey}`,
-        `Model ID：${model}`,
-      ];
-      if (client === 'chatbox') {
-        return ['供应商类型：自定义 OpenAI 兼容', '供应商名称：easyAI 本地网关', ...fieldLines].join('\n');
-      }
-      if (client === 'cherry-studio') {
-        return ['供应商名称：easyAI 本地网关', ...fieldLines, '模型列表：填写 Model ID 或从服务端获取'].join('\n');
-      }
-      if (client === 'workbuddy') {
-        return ['模型提供方：自定义模型（OpenAI 兼容）', ...fieldLines].join('\n');
-      }
-      if (client === 'trae') {
-        return ['模型类型：自定义模型', '接口格式：OpenAI 兼容', `请求地址：${baseUrl}`, `模型 ID：${model}`, `API Key：${visibleKey}`].join('\n');
-      }
-      if (client === 'deepseek-harness') {
-        return ['提供商类型：自定义模型 API', '协议：OpenAI 兼容', `接口地址：${baseUrl}`, `API Key：${visibleKey}`, `模型：从 API 获取后选择 ${model}`].join('\n');
-      }
-      if (client === 'cc-switch-claude') {
-        return ['配置类型：自定义配置', '供应商名称：easyAI 本地网关', `请求地址：${baseUrl}`, `API Key：${visibleKey}`, `Claude 模型 ID：${model}`, '高级选项：使用 Anthropic Messages 认证与路由格式；按 CC-Switch 界面对应字段填写。'].join('\n');
-      }
-      if (client === 'opencode') {
-        return ['自定义提供商 ID：easyai-local', '提供商名称：easyAI 本地网关', `Base URL：${baseUrl}`, `API Key：${visibleKey}`, `添加模型 ID：${model}`].join('\n');
-      }
-      if (client === 'workswarm') {
-        return ['供应商：OpenAI', `模型名：${model}`, `别名：${model}`, `接口地址：${baseUrl}`, `API Key：${visibleKey}`].join('\n');
-      }
-      if (client === 'loomy') {
-        return ['服务商 ID：easyai-local', '服务商名称：easyAI 本地网关', `接口地址：${baseUrl}`, `API Key：${visibleKey}`, `从 API 获取模型后选择：${model}`].join('\n');
-      }
-      if (client === 'hermes-agent') {
-        return ['提供方：自定义端点', `接口地址：${baseUrl}`, `API Key：${visibleKey}`, `配置后选择模型：${model}`].join('\n');
-      }
-      if (client === 'openfic') {
-        return ['连接类型：OpenAI 兼容', `服务 URL：${baseUrl}`, `API Key：${visibleKey}`, '模型类型：语言模型', `模型 ID：${model}`].join('\n');
-      }
-      if (client === 'github-copilot-byok') {
-        return ['模式：使用自己的 API 密钥', '传输格式：Chat Completions', `接口地址：${baseUrl}`, `API Key：${visibleKey}`, `模型 ID：${model}`].join('\n');
-      }
-      if (client === 'vscode-copilot-chat') {
-        return [`名称：${model}`, `模型 ID：${model}`, `API Key：${visibleKey}`, `接口地址：${baseUrl}`, '传输格式：按客户端默认值；如需选择，使用 Chat Completions。'].join('\n');
-      }
-      if (client === 'qclaw') {
-        return ['类型：自定义大模型', `Base URL：${baseUrl}`, `模型名称：${model}`, `API Key：${visibleKey}`].join('\n');
-      }
-      if (client === 'cc-switch-codex') {
-        return ['配置类型：自定义配置', '供应商名称：easyAI 本地网关', `接口地址：${baseUrl}`, `API Key：${visibleKey}`, `添加模型 ID：${model}`, '高级选项：上下文长度与推理强度按需设置（可先保留默认值）。', '应用：点击「路由到此」，再重启 Codex。'].join('\n');
-      }
-      if (client === 'cline') {
-        return ['API 提供方：OpenAI Compatible', ...fieldLines].join('\n');
-      }
-      return [
-        'API 提供方：OpenAI Compatible',
-        ...fieldLines,
-      ].join('\n');
-    }
-
-    function updateSetupDialog() {
-      const client = $('#setup-client').value;
-      const option = $('#setup-client').selectedOptions[0];
-      const meta = SETUP_CLIENT_META[client] || SETUP_CLIENT_META['openai-compatible'];
-      $('#setup-base-url').value ||= setupBaseUrl(client);
-      const instructions = {
-        'claude-code': '在 Claude Code 所在的终端运行预览中的命令；环境变量只对当前终端会话生效。Base URL 不带 /v1，Claude Code 会请求 Anthropic Messages 接口。',
-        cline: '打开 Cline 的 API 配置，选择 OpenAI Compatible，将下方 Base URL、API Key 和 Model ID 填入对应字段。Base URL 带 /v1。',
-        'continue-json': '将下方 JSON 中的 models 条目合并到 Continue 的 config.json；不要覆盖已有其他模型。保存后在 Continue 中选择该模型。字段名请按当前 Continue 版本核对。',
-        chatbox: '在 Chatbox 的模型提供方中添加自定义供应商，选择 OpenAI 兼容类型并填写下方字段；随后获取模型列表或手动添加 Model ID，再测试连接。',
-        'cherry-studio': '在 Cherry Studio 设置中添加自定义供应商，填写 Base URL 和 API Key，获取或手动添加模型 ID，启用供应商并检测连接。',
-        workbuddy: '在 WorkBuddy 的智能体设置 / 模型管理中添加自定义模型，选择自定义供应商，填写下方 Base URL、API Key 和模型名称后保存。教程标注仅支持 OpenAI 兼容接口；思考模式和工具调用等可选项按模型能力自行决定。127.0.0.1 仅在 WorkBuddy 请求从本机发出时可用。',
-        trae: '先登录 Trae，进入「设置 → 模型 → 添加模型 → 自定义模型」。选择与网关相符的兼容格式，填写请求地址、模型 ID 和 API Key，保存后在对话中选择模型。请求地址不要在末尾多加斜杠。',
-        'deepseek-harness': '进入「设置 → 模型 → 添加模型提供商」，选择自定义模型 API，使用 OpenAI 兼容协议并填写地址与 API Key。点击获取可用模型，然后选择当前模型。',
-        'cc-switch-claude': '在 CC-Switch 中添加供应商并选择「自定义配置」，填写名称、请求地址和 API Key；打开高级选项，按下方摘要设置认证方式与路由格式。应用后在 Claude Code 终端发送一条简单消息验证。',
-        opencode: '在 OpenCode 中选择「自定义提供商」，填写提供商 ID、名称、Base URL 和 API Key，再添加模型 ID。使用时在 OpenCode 中选择刚添加的模型。',
-        workswarm: '进入「更多 → 模型配置」，供应商选 OpenAI。模型名和别名可使用相同值，填写接口地址和 API Key 后保存，再回到界面选择模型。',
-        loomy: '进入「模型 → 服务商配置 → 添加服务商」，先填写 ID、名称和接口地址，再填写 API Key 并从 API 获取模型。选择该模型后点击应用。',
-        'hermes-agent': '打开提供方设置，选择「自定义端点」，填写接口地址和 API Key 并保存；再进入模型列表选择对应模型。',
-        openfic: '进入「连接 / 服务提供商 → 新建连接」，选择 OpenAI 兼容协议，填写服务 URL 和 API Key 并保存。之后新建语言模型，若列表没有模型就手动输入 Model ID。',
-        'github-copilot-byok': '在 GitHub Copilot 的模型管理中选择「使用自己的 API 密钥」，传输格式选 Chat Completions，填写接口地址和 API Key，再添加 Model ID。此功能需要当前账号和客户端支持 BYOK。',
-        'vscode-copilot-chat': '在 VS Code Copilot Chat 面板打开「管理模型 → 添加模型 / 自定义端点」，依次填写名称、Model ID、API Key 和接口地址；其他字段先保留默认值，保存后切换到该模型。',
-        qclaw: '打开 QClaw 的「自定义大模型」，填写 Base URL、模型名称和 API Key，保存后回到对话选择该自定义模型。',
-        'cc-switch-codex': '在 CC-Switch 选择「自定义配置」，填写地址与 API Key；添加模型并按需设置上下文长度、推理强度。点击「路由到此」，然后重启 Codex 使配置生效。',
-        'openai-compatible': '在客户端的自定义提供方 / 模型设置中选择 OpenAI Compatible，并按下方字段填写。Base URL 需要带 /v1；具体字段名称以客户端版本为准。',
-      };
-      $('#setup-client-title').textContent = option?.textContent || '其他 OpenAI 兼容客户端';
-      $('#setup-client-description').textContent = meta.description;
-      $('#setup-protocol-badge').textContent = meta.protocol;
-      $('#setup-instructions').textContent = instructions[client] || instructions['openai-compatible'];
-      $('#workbuddy-skill-tools').classList.toggle('hidden', client !== 'workbuddy');
-      $('#workbuddy-skill-status').textContent = '';
-      $('#setup-preview').value = setupConfiguration({ maskKey: true });
-      $('#setup-status').textContent = '';
-      renderSetupClients();
-    }
-
-    function openSetupDialog(model) {
-      $('#setup-model-label').textContent = `当前模型：${model.id}`;
-      $('#setup-model-id').value = model.id;
-      $('#setup-client').value = 'claude-code';
-      $('#setup-base-url').value = setupBaseUrl('claude-code');
-      $('#setup-api-key').value = state.key || 'dummy';
-      updateSetupDialog();
-      $('#setup-dialog').showModal();
-    }
-
-    function renderCatalog() {
-      const list = visibleModels();
-      const root = $('#catalog');
-      root.replaceChildren();
-      if (!list.length) {
-        const empty = document.createElement('div');
-        empty.className = 'empty';
-        empty.textContent = '没有匹配的模型。';
-        root.append(empty);
-        return;
-      }
-      list.forEach((model) => {
-        const card = document.createElement('article');
-        card.className = 'card';
-        card.dataset.modelId = model.id;
-        card.tabIndex = state.testing ? -1 : 0;
-        card.setAttribute('role', 'group');
-        card.dataset.testSelected = String(state.testSelection.has(model.id));
-        card.setAttribute('aria-label', `${model.id}${state.testSelection.has(model.id) ? '，已选中测试' : ''}`);
-        card.addEventListener('click', (event) => {
-          if (suppressLassoClick) {
-            suppressLassoClick = false;
-            clearTimeout(clearLassoClickSuppression);
-            return;
-          }
-          if (event.target.closest('button, details, summary, a')) return;
-          selectTestModel(model.id, { range: event.shiftKey });
-        });
-        card.addEventListener('keydown', (event) => {
-          if (event.target.closest('button, details, summary, a')) return;
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            selectTestModel(model.id, { range: event.shiftKey });
-          }
-        });
-        const heading = document.createElement('div');
-        heading.className = 'card-heading';
-        const check = document.createElement('span');
-        check.className = 'card-check';
-        check.setAttribute('aria-hidden', 'true');
-        heading.append(check);
-        const titleGroup = document.createElement('div');
-        titleGroup.className = 'card-title-group';
-        const title = document.createElement('h2');
-        title.textContent = model.id;
-        titleGroup.append(title);
-        const copyModelButton = document.createElement('button');
-        copyModelButton.className = 'copy-model-button';
-        copyModelButton.type = 'button';
-        copyModelButton.textContent = '复制';
-        copyModelButton.setAttribute('aria-label', `复制模型名 ${model.id}`);
-        copyModelButton.addEventListener('click', async (event) => {
-          event.stopPropagation();
-          try {
-            await copyText(model.id);
-            copyModelButton.textContent = '已复制';
-            setTimeout(() => { copyModelButton.textContent = '复制'; }, 1200);
-          } catch (error) {
-            copyModelButton.textContent = '复制失败';
-            copyModelButton.title = `无法访问剪贴板：${error.message || '浏览器不允许访问剪贴板'}`;
-            setTimeout(() => {
-              copyModelButton.textContent = '复制';
-              copyModelButton.removeAttribute('title');
-            }, 2000);
-          }
-        });
-        titleGroup.append(copyModelButton);
-        heading.append(titleGroup);
-        card.append(heading);
-        if (model.name && model.name !== model.id) {
-          const name = document.createElement('p');
-          name.className = 'model-name';
-          name.textContent = model.name;
-          card.append(name);
-        }
-        if (state.testSelection.has(model.id)) {
-          const selected = document.createElement('div');
-          selected.className = 'selection-status';
-          selected.textContent = '已选用于测试';
-          card.append(selected);
-        }
-        const badges = document.createElement('div');
-        badges.className = 'badges';
-        const free = document.createElement('span');
-        free.className = `badge ${model.isFree === true ? 'free' : model.isFree === false ? '' : 'unknown'}`;
-        free.textContent = model.isFree === true ? '上游标记免费' : model.isFree === false ? '非免费' : '免费状态未知';
-        badges.append(free);
-        for (const tag of model.tags || []) {
-          const badge = document.createElement('span');
-          badge.className = 'badge';
-          badge.textContent = capabilityLabel(tag);
-          if (badge.textContent !== tag) badge.title = tag;
-          badges.append(badge);
-        }
-        card.append(badges);
-        const owner = document.createElement('p');
-        owner.className = 'meta provider-meta';
-        const providers = Array.isArray(model.inference_provider_ids) ? model.inference_provider_ids.filter(Boolean) : [];
-        const providerText = `上游：${providers.length ? providers.join('、') : model.upstream || model.owned_by || '未说明'}`;
-        owner.textContent = providerText;
-        owner.title = providerText;
-        card.append(owner);
-
-        const contextLength = model.context_length || model.top_provider?.context_length;
-        const context = formatTokens(contextLength) || (model.ctx ? `${formatTokens(model.ctx)}（项目估算）` : '');
-        appendMeta(card, '上下文上限', context);
-        appendMeta(card, '单次回复上限', formatTokens(model.top_provider?.max_completion_tokens));
-
-        const inputModalities = model.architecture?.input_modalities;
-        const outputModalities = model.architecture?.output_modalities;
-        if (Array.isArray(inputModalities) || Array.isArray(outputModalities)) {
-          const inputs = Array.isArray(inputModalities) ? inputModalities.map(modalityLabel).join('、') : '未说明';
-          const outputs = Array.isArray(outputModalities) ? outputModalities.map(modalityLabel).join('、') : '未说明';
-          appendMeta(card, '输入 / 输出', `${inputs} → ${outputs}`);
-        }
-
-        const parameters = Array.isArray(model.supported_parameters) ? model.supported_parameters : [];
-        const capabilities = [];
-        if (parameters.includes('tools') || parameters.includes('tool_choice')) capabilities.push('工具调用');
-        if (parameters.includes('reasoning') || parameters.includes('include_reasoning')) capabilities.push('推理参数');
-        if (parameters.includes('structured_outputs') || parameters.includes('response_format')) capabilities.push('结构化输出');
-        if (capabilities.length) appendMeta(card, '接口能力', capabilities.join('、'));
-
-        if (model.description) {
-          const description = document.createElement('div');
-          description.className = 'description';
-          const fullDescription = String(model.description).trim();
-          const details = document.createElement('details');
-          const summary = document.createElement('summary');
-          summary.textContent = '查看完整说明';
-          const full = document.createElement('p');
-          full.textContent = fullDescription;
-          details.append(summary, full);
-          description.append(details);
-          card.append(description);
-        }
-
-        if (model.expiration_date) {
-          const expiry = new Date(model.expiration_date);
-          appendMeta(card, '目录标注到期时间', Number.isNaN(expiry.getTime()) ? String(model.expiration_date) : expiry.toLocaleDateString());
-        }
-        if (model.mayTrainOnYourPrompts === true) {
-          const warning = document.createElement('span');
-          warning.className = 'badge warning';
-          warning.textContent = '上游可能使用提示词改进服务';
-          warning.title = '该信息由上游模型目录提供；发送敏感信息前请查看提供方政策。';
-          badges.append(warning);
-        }
-        const testButton = document.createElement('button');
-        testButton.className = 'test-model-button';
-        testButton.textContent = state.testResults.get(model.id)?.status === 'running' ? '测试中…' : '连通测试';
-        testButton.disabled = state.testing;
-        testButton.addEventListener('click', () => runTests([model.id]));
-        const configureButton = document.createElement('button');
-        configureButton.className = 'configure-model-button';
-        configureButton.textContent = '接入客户端';
-        configureButton.setAttribute('aria-label', `将 ${model.id} 接入客户端`);
-        configureButton.addEventListener('click', () => openSetupDialog(model));
-        card.append(testButton, configureButton);
-        appendCardResult(card, state.testResults.get(model.id));
-        root.append(card);
-      });
-    }
-
-    document.addEventListener('keydown', (event) => {
-      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'a' || state.testing) return;
-      if (event.target instanceof HTMLElement
-        && (event.target.isContentEditable || event.target.matches('input:not([type="checkbox"]), textarea, select'))) return;
-      event.preventDefault();
-      state.testSelection = new Set(visibleModels().map((model) => model.id));
-      state.selectionAnchor = '';
-      renderCatalog();
-      updateTestControls();
-    });
-
-    $('#clear-selection').addEventListener('click', () => {
-      if (state.testing) return;
-      state.testSelection.clear();
-      state.selectionAnchor = '';
-      renderCatalog();
-      updateTestControls();
-    });
-    $('#dock-clear-button').addEventListener('click', () => $('#clear-selection').click());
-    $('#top-test-button').addEventListener('click', () => startSelectedTests());
-    $('#dock-test-button').addEventListener('click', () => startSelectedTests());
-    $('#test-button').addEventListener('click', () => startSelectedTests());
-    $('#top-stop-button').addEventListener('click', () => stopTests());
-    $('#dock-stop-button').addEventListener('click', () => stopTests());
-    document.addEventListener('keydown', (event) => {
-      if (!(event.ctrlKey || event.metaKey) || event.key !== 'Enter' || state.testing || !state.testSelection.size) return;
-      event.preventDefault();
-      startSelectedTests();
-    });
-
-    $('#save-key').addEventListener('click', () => {
-      state.key = $('#local-key').value.trim();
-      if (state.key) sessionStorage.setItem('gateway-local-key', state.key);
-      else sessionStorage.removeItem('gateway-local-key');
-      loadCatalog();
-    });
-    $('#refresh').addEventListener('click', loadCatalog);
-    $('#search').addEventListener('input', renderCatalog);
-    $('#free-only').addEventListener('change', renderCatalog);
-    $('#close-setup').addEventListener('click', () => $('#setup-dialog').close());
-    $('#setup-client').addEventListener('change', () => {
-      $('#setup-base-url').value = setupBaseUrl($('#setup-client').value);
-      updateSetupDialog();
-    });
-    $('#setup-client-search').addEventListener('input', renderSetupClients);
-    $('#setup-api-key').addEventListener('input', updateSetupDialog);
-    $('#copy-workbuddy-skill').addEventListener('click', async () => {
-      const status = $('#workbuddy-skill-status');
-      try {
-        const response = await fetch('/api/workbuddy-skill', { headers: apiHeaders() });
-        if (!response.ok) throw new Error(`下载指令失败（HTTP ${response.status}）`);
-        const skill = await response.text();
-        const prompt = skill.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '').trim();
-        if (!prompt) throw new Error('Skill 内容为空');
-        const keyInstruction = state.key
-          ? '我已设置本机访问口令；请不要在聊天中索取或输出口令，让我直接在 WorkBuddy 的 API Key 密码框中输入。'
-          : '本机未设置访问口令，API Key 使用 dummy。';
-        const request = [
-          '请按以下说明帮我配置 WorkBuddy。',
-          `本次选择的模型 ID：${$('#setup-model-id').value}`,
-          `Base URL：${setupBaseUrl('workbuddy')}`,
-          keyInstruction,
-          '',
-          prompt,
-        ].join('\n');
-        await copyText(request);
-        status.textContent = '已复制。现在打开 WorkBuddy 对话框并粘贴即可；其中不包含你的 API Key。';
-      } catch (error) {
-        status.textContent = error.message || '复制失败，请重试。';
-      }
-    });
-    $('#download-workbuddy-skill').addEventListener('click', async () => {
-      const status = $('#workbuddy-skill-status');
-      try {
-        const response = await fetch('/api/workbuddy-skill.zip', { headers: apiHeaders() });
-        if (!response.ok) throw new Error(`下载 Skill 失败（HTTP ${response.status}）`);
-        const archive = await response.blob();
-        const url = URL.createObjectURL(archive);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = 'configure-workbuddy-easyai-model.zip';
-        link.click();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-        status.textContent = 'ZIP 已下载。可在 WorkBuddy 的 Skill 入口上传这个文件。';
-      } catch (error) {
-        status.textContent = error.message || '下载失败，请重试。';
-      }
-    });
-    $('#setup-copy').addEventListener('click', async () => {
-      const status = $('#setup-status');
-      try {
-        await navigator.clipboard.writeText(setupConfiguration());
-        status.textContent = '配置已复制。请粘贴到对应客户端；包含口令时注意不要分享。';
-      } catch (error) {
-        status.textContent = `复制失败：${error.message || '浏览器不允许访问剪贴板'}。请手动复制上方预览。`;
-      }
-    });
-    function startSelectedTests() {
-      const models = state.models.filter((model) => state.testSelection.has(model.id)).map((model) => model.id);
-      return runTests(models);
-    }
-
-    function stopTests() {
-      if (!state.testing || state.stopRequested) return;
-      state.stopRequested = true;
-      updateTestControls();
-      showResult('已请求停止。当前模型的请求结束后，将不会继续请求后续模型。', true);
-    }
-
-    async function runTests(models) {
-      if (state.testing) return;
-      if (!models.length) return;
-
-      const prompt = $('#test-prompt').value;
-      state.testing = true;
-      state.stopRequested = false;
-      for (const model of models) state.testResults.set(model, { status: 'queued' });
-      updateTestControls();
-      renderCatalog();
-      showResult(`准备按顺序测试 ${models.length} 个模型……`, true);
-      let passed = 0;
-      let completed = 0;
-      try {
-        for (const [index, model] of models.entries()) {
-          if (state.stopRequested) break;
-          const result = { status: 'running' };
-          state.testResults.set(model, result);
-          showResult(`正在测试 ${model}（${index + 1}/${models.length}）……`, true);
-          renderCatalog();
-          const startedAt = performance.now();
-          try {
-            const response = await fetch('/api/test', {
-              method: 'POST',
-              headers: apiHeaders({ 'Content-Type': 'application/json' }),
-              body: JSON.stringify({ model, prompt }),
-            });
-            const raw = await response.text();
-            result.elapsed = (performance.now() - startedAt) / 1000;
-            let payload;
-            try { payload = JSON.parse(raw); } catch { payload = raw; }
-            if (!response.ok) {
-              result.status = 'failed';
-              result.error = failureMessage(response.status, payload, response.headers);
-            } else {
-              result.status = 'success';
-              result.answer = payload.choices?.[0]?.message?.content || JSON.stringify(payload, null, 2);
-              passed++;
-            }
-          } catch (error) {
-            result.status = 'failed';
-            result.elapsed = (performance.now() - startedAt) / 1000;
-            result.error = `本机连接失败：${error.message}\n建议：确认网关仍在运行，浏览器打开的是 http://127.0.0.1:8899/；若刚设置 LOCAL_KEY，请重新填写并保存。`;
-          }
-          state.testResults.set(model, result);
-          completed++;
-          renderCatalog();
-        }
-      } finally {
-        const stopped = state.stopRequested;
-        if (stopped) {
-          for (const model of models) {
-            if (state.testResults.get(model)?.status === 'queued') {
-              state.testResults.set(model, { status: 'stopped' });
-            }
-          }
-        }
-        state.testing = false;
-        state.stopRequested = false;
-        updateTestControls();
-        renderCatalog();
-        const allPassed = passed === models.length;
-        const summary = stopped
-          ? `已停止：完成 ${completed}/${models.length} 个模型，其中 ${passed} 个成功。`
-          : `测试完成：${passed}/${models.length} 个模型成功。`;
-        showResult(`${summary}各模型的回复或错误显示在对应卡片中。`, !stopped && allPassed);
-      }
-    }
-    updateTestControls();
-    showView('home');
-  </script>
+  <script src="/assets/dashboard.js"></script>
 </body>
 </html>

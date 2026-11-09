@@ -29,6 +29,10 @@ const HOST = process.env.HOST || '127.0.0.1';
 const ROOT = __dirname;
 const CAPABILITIES_FILE = pathModule.join(ROOT, 'lib', 'model-capabilities.json');
 const CLIENT_GUIDE_FILE = pathModule.join(ROOT, 'docs', 'client-guides', 'third-party-api-setup.html');
+const PUBLIC_ASSETS = new Map([
+  ['/assets/dashboard.css', { file: pathModule.join(ROOT, 'public', 'assets', 'dashboard.css'), type: 'text/css; charset=utf-8' }],
+  ['/assets/dashboard.js', { file: pathModule.join(ROOT, 'public', 'assets', 'dashboard.js'), type: 'text/javascript; charset=utf-8' }],
+]);
 const WORKBUDDY_SKILL_DIR = pathModule.join(ROOT, '..', 'configure-workbuddy-easyai-model');
 // 本机网关可选口令：设置后客户端需带 Authorization: Bearer <key>。
 const LOCAL_KEY = process.env.LOCAL_KEY || '';
@@ -45,13 +49,34 @@ const USER_DATA_DIR = process.env.EASYAI_DATA_DIR || pathModule.join(
 const VAULT_FILE = process.env.EASYAI_VAULT_PATH || pathModule.join(USER_DATA_DIR, 'vault.json');
 const VAULT_PROVIDERS = {
   sensenova: 'SenseNova（商汤日日新）',
+  internlm: '书生·端砚（InternLM）',
 };
 const VAULT_PASSWORD_MIN_LENGTH = 12;
+
+// SenseNova 配置（支持通过环境变量覆盖，用于测试）
+const SENSENOVA_HOST = process.env.SENSENOVA_HOST || 'token.sensenova.cn';
+const SENSENOVA_BASE = process.env.SENSENOVA_BASE || '/v1';
+
+// InternLM (书生·端砚) 配置
+const INTERNLM_HOST = process.env.INTERNLM_HOST || 'discovery-api.intern-ai.org.cn';
+const INTERNLM_BASE = process.env.INTERNLM_BASE || '/v1';
 
 let vaultKey = null;
 let vaultSecrets = null;
 
 const UPSTREAM_HEADERS = {
+  'content-type': 'application/json',
+  accept: '*/*',
+  'user-agent': 'kilo-free-gateway/1.0',
+};
+
+const SENSENOVA_UPSTREAM_HEADERS = {
+  'content-type': 'application/json',
+  accept: '*/*',
+  'user-agent': 'kilo-free-gateway/1.0',
+};
+
+const INTERNLM_UPSTREAM_HEADERS = {
   'content-type': 'application/json',
   accept: '*/*',
   'user-agent': 'kilo-free-gateway/1.0',
@@ -207,6 +232,60 @@ function requestUpstream(pathname) {
   });
 }
 
+function requestSenseNova(pathname, method = 'GET', body = undefined, apiKey = undefined) {
+  return new Promise((resolve, reject) => {
+    const payload = body === undefined ? null : JSON.stringify(body);
+    const headers = { ...SENSENOVA_UPSTREAM_HEADERS };
+    if (apiKey) headers.authorization = `Bearer ${apiKey}`;
+    if (payload) headers['content-length'] = Buffer.byteLength(payload);
+    if (method !== 'GET') headers.accept = 'text/event-stream';
+
+    const req = https.request(
+      { hostname: SENSENOVA_HOST, path: SENSENOVA_BASE + pathname, method, headers },
+      (up) => {
+        const chunks = [];
+        up.on('data', (chunk) => chunks.push(chunk));
+        up.on('end', () => resolve({
+          statusCode: up.statusCode || 502,
+          headers: up.headers,
+          body: Buffer.concat(chunks).toString('utf8'),
+        }));
+      },
+    );
+    req.setTimeout(30000, () => req.destroy(new Error('sensenova request timed out')));
+    req.on('error', reject);
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
+function requestInternLM(pathname, method = 'GET', body = undefined, apiKey = undefined) {
+  return new Promise((resolve, reject) => {
+    const payload = body === undefined ? null : JSON.stringify(body);
+    const headers = { ...INTERNLM_UPSTREAM_HEADERS };
+    if (apiKey) headers.authorization = `Bearer ${apiKey}`;
+    if (payload) headers['content-length'] = Buffer.byteLength(payload);
+    if (method !== 'GET') headers.accept = 'text/event-stream';
+
+    const req = https.request(
+      { hostname: INTERNLM_HOST, path: INTERNLM_BASE + pathname, method, headers },
+      (up) => {
+        const chunks = [];
+        up.on('data', (chunk) => chunks.push(chunk));
+        up.on('end', () => resolve({
+          statusCode: up.statusCode || 502,
+          headers: up.headers,
+          body: Buffer.concat(chunks).toString('utf8'),
+        }));
+      },
+    );
+    req.setTimeout(30000, () => req.destroy(new Error('internlm request timed out')));
+    req.on('error', reject);
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
 function forwardedHeaders(up, stream) {
   const headers = {};
   for (const name of ['content-type', 'retry-after', 'x-request-id']) {
@@ -221,7 +300,7 @@ function forwardedHeaders(up, stream) {
   return headers;
 }
 
-/** 转发到上游。stream=true 时把响应体直接管道回客户端。 */
+/** 转发到 Kilo 上游。stream=true 时把响应体直接管道回客户端。 */
 function upstream(pathname, method, body, res, { stream, model }) {
   const payload = body === undefined ? null : JSON.stringify(body);
   const headers = { ...UPSTREAM_HEADERS };
@@ -243,6 +322,72 @@ function upstream(pathname, method, body, res, { stream, model }) {
 
   req.on('error', (e) => {
     log(`!! upstream error ${method} ${pathname} model=${model || '-'}: ${e.message}`);
+    if (!res.headersSent) {
+      res.writeHead(502, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: { type: 'upstream_error', message: e.message } }));
+    } else res.end();
+  });
+
+  if (payload) req.write(payload);
+  req.end();
+}
+
+/** 转发到 SenseNova 上游。stream=true 时把响应体直接管道回客户端。 */
+function upstreamSenseNova(pathname, method, body, res, { stream, model, apiKey }) {
+  const payload = body === undefined ? null : JSON.stringify(body);
+  const headers = { ...SENSENOVA_UPSTREAM_HEADERS };
+  if (apiKey) headers.authorization = `Bearer ${apiKey}`;
+  if (payload) headers['content-length'] = Buffer.byteLength(payload);
+  if (stream) headers.accept = 'text/event-stream';
+  const startedAt = Date.now();
+
+  const req = https.request(
+    { hostname: SENSENOVA_HOST, path: SENSENOVA_BASE + pathname, method, headers },
+    (up) => {
+      res.writeHead(up.statusCode || 502, forwardedHeaders(up, stream));
+      up.pipe(res);
+      up.on('end', () => {
+        const retryAfter = up.headers['retry-after'];
+        log(`<- SenseNova ${up.statusCode} ${method} ${pathname} model=${model || '-'} ${Date.now() - startedAt}ms${retryAfter ? ` retry-after=${retryAfter}` : ''}`);
+      });
+    },
+  );
+
+  req.on('error', (e) => {
+    log(`!! SenseNova upstream error ${method} ${pathname} model=${model || '-'}: ${e.message}`);
+    if (!res.headersSent) {
+      res.writeHead(502, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: { type: 'upstream_error', message: e.message } }));
+    } else res.end();
+  });
+
+  if (payload) req.write(payload);
+  req.end();
+}
+
+/** 转发到 InternLM (书生·端砚) 上游。stream=true 时把响应体直接管道回客户端。 */
+function upstreamInternLM(pathname, method, body, res, { stream, model, apiKey }) {
+  const payload = body === undefined ? null : JSON.stringify(body);
+  const headers = { ...INTERNLM_UPSTREAM_HEADERS };
+  if (apiKey) headers.authorization = `Bearer ${apiKey}`;
+  if (payload) headers['content-length'] = Buffer.byteLength(payload);
+  if (stream) headers.accept = 'text/event-stream';
+  const startedAt = Date.now();
+
+  const req = https.request(
+    { hostname: INTERNLM_HOST, path: INTERNLM_BASE + pathname, method, headers },
+    (up) => {
+      res.writeHead(up.statusCode || 502, forwardedHeaders(up, stream));
+      up.pipe(res);
+      up.on('end', () => {
+        const retryAfter = up.headers['retry-after'];
+        log(`<- InternLM ${up.statusCode} ${method} ${pathname} model=${model || '-'} ${Date.now() - startedAt}ms${retryAfter ? ` retry-after=${retryAfter}` : ''}`);
+      });
+    },
+  );
+
+  req.on('error', (e) => {
+    log(`!! InternLM upstream error ${method} ${pathname} model=${model || '-'}: ${e.message}`);
     if (!res.headersSent) {
       res.writeHead(502, { 'content-type': 'application/json' });
       res.end(JSON.stringify({ error: { type: 'upstream_error', message: e.message } }));
@@ -325,6 +470,19 @@ function zipSingleFile(name, content) {
   return Buffer.concat([localRecord, centralRecord, endRecord]);
 }
 
+function isSenseNovaModel(modelId) {
+  if (!modelId || typeof modelId !== 'string') return false;
+  // SenseNova 模型通常以 sensenova/ 开头
+  // 也可以扩展为从目录缓存中查询
+  return modelId.startsWith('sensenova/') || modelId.startsWith('sense-nova/');
+}
+
+function isInternLMModel(modelId) {
+  if (!modelId || typeof modelId !== 'string') return false;
+  // InternLM 模型通常以 internlm/ 开头
+  return modelId.startsWith('internlm/');
+}
+
 /** 本地口令校验（仅在设置了 LOCAL_KEY 时生效）。 */
 function authorized(req) {
   if (!LOCAL_KEY) return true;
@@ -352,6 +510,24 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && (path === '/' || path === '/index.html')) {
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
     return fs.createReadStream(pathModule.join(ROOT, 'public', 'index.html')).pipe(res);
+  }
+  if (req.method === 'GET' && PUBLIC_ASSETS.has(path)) {
+    const asset = PUBLIC_ASSETS.get(path);
+    try {
+      const contents = await fs.promises.readFile(asset.file);
+      res.writeHead(200, {
+        'content-type': asset.type,
+        'content-length': contents.length,
+        'cache-control': 'no-store',
+        'x-content-type-options': 'nosniff',
+      });
+      return res.end(contents);
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        return json(res, 404, { error: { type: 'not_found', message: 'Dashboard asset is not installed' } });
+      }
+      throw error;
+    }
   }
   if (req.method === 'GET' && path === '/docs/client-guides/third-party-api-setup.html') {
     try {
@@ -509,8 +685,137 @@ const server = http.createServer(async (req, res) => {
       const models = catalog.data.map((model) => ({
         ...model,
         ...(capabilities[model.id] || {}),
+        provider: 'kilo',
       }));
       return json(res, 200, { data: models, checked_at: new Date().toISOString() });
+    }
+
+    // SenseNova 目录端点：仅在凭据库解锁且配置了 Key 时可用
+    if (path === '/api/sensenova/catalog' && req.method === 'GET') {
+      if (!vaultKey || !vaultSecrets) {
+        return json(res, 423, { error: { type: 'vault_locked', message: '请先解锁本机凭据库' } }, { 'cache-control': 'no-store' });
+      }
+      const sensenovaKey = vaultSecrets.sensenova;
+      if (!sensenovaKey) {
+        return json(res, 404, { error: { type: 'not_configured', message: '尚未配置 SenseNova Key' } }, { 'cache-control': 'no-store' });
+      }
+      let up;
+      try {
+        up = await requestSenseNova('/models', 'GET', undefined, sensenovaKey);
+      } catch (e) {
+        log(`!! SenseNova error GET /models: ${e.message}`);
+        return json(res, 502, { error: { type: 'upstream_error', message: e.message } }, { 'cache-control': 'no-store' });
+      }
+      const retryAfter = up.headers['retry-after'];
+      log(`<- SenseNova ${up.statusCode} GET /models${retryAfter ? ` retry-after=${retryAfter}` : ''}`);
+      if (up.statusCode < 200 || up.statusCode >= 300) {
+        return json(res, up.statusCode, {
+          error: { type: 'upstream_error', message: 'Could not load SenseNova model catalog', details: up.body },
+          retry_after: up.headers['retry-after'] || null,
+        }, retryAfter ? { 'retry-after': retryAfter } : { 'cache-control': 'no-store' });
+      }
+      let catalog;
+      try {
+        catalog = JSON.parse(up.body);
+      } catch {
+        return json(res, 502, { error: { type: 'upstream_error', message: 'SenseNova model catalog has an invalid format' } }, { 'cache-control': 'no-store' });
+      }
+      if (!Array.isArray(catalog.data)) {
+        return json(res, 502, { error: { type: 'upstream_error', message: 'SenseNova model catalog data is not an array' } }, { 'cache-control': 'no-store' });
+      }
+      const models = catalog.data.map((model) => ({
+        ...model,
+        provider: 'sensenova',
+        upstream: 'sensenova',
+      }));
+      return json(res, 200, { data: models, checked_at: new Date().toISOString() }, { 'cache-control': 'no-store' });
+    }
+
+    // InternLM (书生·端砚) 目录端点：仅在凭据库解锁且配置了 Key 时可用
+    if (path === '/api/internlm/catalog' && req.method === 'GET') {
+      if (!vaultKey || !vaultSecrets) {
+        return json(res, 423, { error: { type: 'vault_locked', message: '请先解锁本机凭据库' } }, { 'cache-control': 'no-store' });
+      }
+      const internlmKey = vaultSecrets.internlm;
+      if (!internlmKey) {
+        return json(res, 404, { error: { type: 'not_configured', message: '尚未配置 InternLM Key' } }, { 'cache-control': 'no-store' });
+      }
+      let up;
+      try {
+        up = await requestInternLM('/models', 'GET', undefined, internlmKey);
+      } catch (e) {
+        log(`!! InternLM error GET /models: ${e.message}`);
+        return json(res, 502, { error: { type: 'upstream_error', message: e.message } }, { 'cache-control': 'no-store' });
+      }
+      const retryAfter = up.headers['retry-after'];
+      log(`<- InternLM ${up.statusCode} GET /models${retryAfter ? ` retry-after=${retryAfter}` : ''}`);
+      if (up.statusCode < 200 || up.statusCode >= 300) {
+        return json(res, up.statusCode, {
+          error: { type: 'upstream_error', message: 'Could not load InternLM model catalog', details: up.body },
+          retry_after: up.headers['retry-after'] || null,
+        }, retryAfter ? { 'retry-after': retryAfter } : { 'cache-control': 'no-store' });
+      }
+      let catalog;
+      try {
+        catalog = JSON.parse(up.body);
+      } catch {
+        return json(res, 502, { error: { type: 'upstream_error', message: 'InternLM model catalog has an invalid format' } }, { 'cache-control': 'no-store' });
+      }
+      if (!Array.isArray(catalog.data)) {
+        return json(res, 502, { error: { type: 'upstream_error', message: 'InternLM model catalog data is not an array' } }, { 'cache-control': 'no-store' });
+      }
+      const models = catalog.data.map((model) => ({
+        ...model,
+        provider: 'internlm',
+        upstream: 'internlm',
+      }));
+      return json(res, 200, { data: models, checked_at: new Date().toISOString() }, { 'cache-control': 'no-store' });
+    }
+
+    // SenseNova 测试端点
+    if (path === '/api/sensenova/test' && req.method === 'POST') {
+      if (!vaultKey || !vaultSecrets) {
+        return json(res, 423, { error: { type: 'vault_locked', message: '请先解锁本机凭据库' } }, { 'cache-control': 'no-store' });
+      }
+      const sensenovaKey = vaultSecrets.sensenova;
+      if (!sensenovaKey) {
+        return json(res, 404, { error: { type: 'not_configured', message: '尚未配置 SenseNova Key' } }, { 'cache-control': 'no-store' });
+      }
+      const body = await readBody(req);
+      if (typeof body?.model !== 'string' || !body.model.trim()) {
+        return json(res, 400, { error: { type: 'invalid_request', message: 'model is required' } }, { 'cache-control': 'no-store' });
+      }
+      const prompt = typeof body.prompt === 'string' && body.prompt.trim()
+        ? body.prompt.trim().slice(0, 2000)
+        : 'Reply with OK.';
+      return upstreamSenseNova('/chat/completions', 'POST', {
+        model: body.model,
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 128,
+      }, res, { stream: false, model: body.model, apiKey: sensenovaKey });
+    }
+
+    // InternLM (书生·端砚) 测试端点
+    if (path === '/api/internlm/test' && req.method === 'POST') {
+      if (!vaultKey || !vaultSecrets) {
+        return json(res, 423, { error: { type: 'vault_locked', message: '请先解锁本机凭据库' } }, { 'cache-control': 'no-store' });
+      }
+      const internlmKey = vaultSecrets.internlm;
+      if (!internlmKey) {
+        return json(res, 404, { error: { type: 'not_configured', message: '尚未配置 InternLM Key' } }, { 'cache-control': 'no-store' });
+      }
+      const body = await readBody(req);
+      if (typeof body?.model !== 'string' || !body.model.trim()) {
+        return json(res, 400, { error: { type: 'invalid_request', message: 'model is required' } }, { 'cache-control': 'no-store' });
+      }
+      const prompt = typeof body.prompt === 'string' && body.prompt.trim()
+        ? body.prompt.trim().slice(0, 2000)
+        : 'Reply with OK.';
+      return upstreamInternLM('/chat/completions', 'POST', {
+        model: body.model,
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 128,
+      }, res, { stream: false, model: body.model, apiKey: internlmKey });
     }
     if (path === '/api/test' && req.method === 'POST') {
       const body = await readBody(req);
@@ -532,15 +837,59 @@ const server = http.createServer(async (req, res) => {
     if (path === '/v1/chat/completions' && req.method === 'POST') {
       const body = await readBody(req);
       if (!body?.model) return json(res, 400, { error: { type: 'invalid_request', message: 'model is required' } });
+      // 判断是否为 SenseNova 模型（通过 provider 字段或模型 ID 前缀）
+      const isSenseNova = isSenseNovaModel(body.model);
+      if (isSenseNova) {
+        if (!vaultKey || !vaultSecrets || !vaultSecrets.sensenova) {
+          return json(res, 403, { error: { type: 'forbidden', message: 'SenseNova 模型需要先在凭据库中配置并解锁 Key' } });
+        }
+        return upstreamSenseNova('/chat/completions', 'POST', body, res, { stream: body.stream === true, model: body.model, apiKey: vaultSecrets.sensenova });
+      }
+      // 判断是否为 InternLM 模型（模型 ID 以 internlm/ 开头）
+      const isInternLM = isInternLMModel(body.model);
+      if (isInternLM) {
+        if (!vaultKey || !vaultSecrets || !vaultSecrets.internlm) {
+          return json(res, 403, { error: { type: 'forbidden', message: 'InternLM 模型需要先在凭据库中配置并解锁 Key' } });
+        }
+        return upstreamInternLM('/chat/completions', 'POST', body, res, { stream: body.stream === true, model: body.model, apiKey: vaultSecrets.internlm });
+      }
       return upstream('/chat/completions', 'POST', body, res, { stream: body.stream === true, model: body.model });
     }
     if (path === '/v1/messages' && req.method === 'POST') {
       const body = await readBody(req);
       if (!body?.model) return json(res, 400, { error: { type: 'invalid_request', message: 'model is required' } });
+      const isSenseNova = isSenseNovaModel(body.model);
+      if (isSenseNova) {
+        if (!vaultKey || !vaultSecrets || !vaultSecrets.sensenova) {
+          return json(res, 403, { error: { type: 'forbidden', message: 'SenseNova 模型需要先在凭据库中配置并解锁 Key' } });
+        }
+        return upstreamSenseNova('/v1/messages', 'POST', body, res, { stream: body.stream === true, model: body.model, apiKey: vaultSecrets.sensenova });
+      }
+      const isInternLM = isInternLMModel(body.model);
+      if (isInternLM) {
+        if (!vaultKey || !vaultSecrets || !vaultSecrets.internlm) {
+          return json(res, 403, { error: { type: 'forbidden', message: 'InternLM 模型需要先在凭据库中配置并解锁 Key' } });
+        }
+        return upstreamInternLM('/v1/messages', 'POST', body, res, { stream: body.stream === true, model: body.model, apiKey: vaultSecrets.internlm });
+      }
       return upstream('/v1/messages', 'POST', body, res, { stream: body.stream === true, model: body.model });
     }
     if (path === '/v1/responses' && req.method === 'POST') {
       const body = await readBody(req);
+      const isSenseNova = isSenseNovaModel(body?.model);
+      if (isSenseNova) {
+        if (!vaultKey || !vaultSecrets || !vaultSecrets.sensenova) {
+          return json(res, 403, { error: { type: 'forbidden', message: 'SenseNova 模型需要先在凭据库中配置并解锁 Key' } });
+        }
+        return upstreamSenseNova('/responses', 'POST', body, res, { stream: body?.stream === true, model: body?.model, apiKey: vaultSecrets.sensenova });
+      }
+      const isInternLM = isInternLMModel(body?.model);
+      if (isInternLM) {
+        if (!vaultKey || !vaultSecrets || !vaultSecrets.internlm) {
+          return json(res, 403, { error: { type: 'forbidden', message: 'InternLM 模型需要先在凭据库中配置并解锁 Key' } });
+        }
+        return upstreamInternLM('/responses', 'POST', body, res, { stream: body?.stream === true, model: body?.model, apiKey: vaultSecrets.internlm });
+      }
       return upstream('/responses', 'POST', body, res, { stream: body?.stream === true, model: body?.model });
     }
     return json(res, 404, { error: { type: 'not_found', message: `no route for ${req.method} ${path}` } });

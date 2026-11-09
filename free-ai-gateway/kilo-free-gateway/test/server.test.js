@@ -1,4 +1,4 @@
-const { test } = require('node:test');
+const { test, describe, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
 const net = require('node:net');
@@ -7,6 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 const zlib = require('node:zlib');
 const vm = require('node:vm');
+const https = require('node:https');
 
 const ROOT = path.join(__dirname, '..');
 const KEY = 'test-local-key';
@@ -63,7 +64,12 @@ test('serves local dashboard, enforces auth, and validates manual tests', async 
     assert.match(pageHtml, /id="home-view"/);
     assert.match(pageHtml, /id="open-kilo"/);
     assert.match(pageHtml, /id="open-providers"/);
-    assert.match(pageHtml, /id="providers-view"/);
+    assert.match(pageHtml, /id="vault-view"/);
+    assert.match(pageHtml, /id="sensenova-view"/);
+    assert.match(pageHtml, /id="internlm-view"/);
+    assert.match(pageHtml, /id="vault-open-sensenova"/);
+    assert.match(pageHtml, /id="vault-open-internlm"/);
+    assert.doesNotMatch(pageHtml, /id="provider-tabs"|id="panel-sensenova"|id="panel-internlm"/);
     assert.match(pageHtml, /SenseNova（商汤日日新）/);
     assert.match(pageHtml, /id="sensenova-flow"/);
     assert.match(pageHtml, /https:\/\/www\.sensenova\.cn\/token-plan/);
@@ -71,20 +77,13 @@ test('serves local dashboard, enforces auth, and validates manual tests', async 
     assert.match(pageHtml, /id="vault-password"/);
     assert.match(pageHtml, /id="sensenova-api-key"/);
     assert.match(pageHtml, /主密码不会保存在浏览器或凭据文件中/);
-    assert.match(pageHtml, /接入客户端/);
-    assert.match(pageHtml, /Claude Code（Anthropic Messages）/);
-    assert.match(pageHtml, /Cline（OpenAI 兼容表单）/);
-    assert.match(pageHtml, /Continue（config\.json）/);
-    assert.match(pageHtml, /Chatbox（自定义供应商）/);
-    assert.match(pageHtml, /Cherry Studio（自定义供应商）/);
-    assert.match(pageHtml, /WorkBuddy（自定义模型）/);
-    assert.equal([...pageHtml.matchAll(/<option value="/g)].length, 19, '18 documented clients and one generic option should be available');
-    assert.match(pageHtml, /class="setup-sidebar"/);
-    assert.match(pageHtml, /id="setup-client-list"/);
-    assert.match(pageHtml, /id="setup-client-search"/);
-    assert.match(pageHtml, /id="setup-content-scroll"/);
-    assert.match(pageHtml, /docs\/client-guides\/third-party-api-setup\.html/);
     for (const client of [
+      'Claude Code（Anthropic Messages）',
+      'Cline（OpenAI 兼容表单）',
+      'Continue（config.json）',
+      'Chatbox（自定义供应商）',
+      'Cherry Studio（自定义供应商）',
+      'WorkBuddy（自定义模型）',
       'Trae（自定义模型）',
       'DeepSeek Harness',
       'CC-Switch（Claude Code）',
@@ -97,13 +96,34 @@ test('serves local dashboard, enforces auth, and validates manual tests', async 
       'VS Code GitHub Copilot Chat',
       'QClaw',
       'CC-Switch（Codex）',
+      '复制给 WorkBuddy',
+      '下载 Skill ZIP',
     ]) {
       assert.ok(pageHtml.includes(client), `dashboard should include ${client}`);
     }
-    assert.match(pageHtml, /复制给 WorkBuddy/);
-    assert.match(pageHtml, /下载 Skill ZIP/);
-    const inlineScripts = [...pageHtml.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)];
-    assert.ok(inlineScripts.length > 0, 'dashboard should include its scripts');
+    assert.equal([...pageHtml.matchAll(/<option value="/g)].length, 19, '18 documented clients and one generic option should be available');
+    assert.match(pageHtml, /class="setup-sidebar"/);
+    assert.match(pageHtml, /id="setup-client-list"/);
+    assert.match(pageHtml, /id="setup-client-search"/);
+    assert.match(pageHtml, /id="setup-content-scroll"/);
+    assert.match(pageHtml, /docs\/client-guides\/third-party-api-setup\.html/);
+    assert.match(pageHtml, /href="\/assets\/dashboard\.css"/);
+    assert.match(pageHtml, /src="\/assets\/dashboard\.js"/);
+    const [stylesheet, dashboardScript] = await Promise.all([
+      fetch(`${baseUrl}/assets/dashboard.css`),
+      fetch(`${baseUrl}/assets/dashboard.js`),
+    ]);
+    assert.equal(stylesheet.status, 200);
+    assert.match(stylesheet.headers.get('content-type'), /text\/css/);
+    assert.match(await stylesheet.text(), /\.catalog\s*\{/);
+    assert.equal(dashboardScript.status, 200);
+    assert.match(dashboardScript.headers.get('content-type'), /javascript/);
+    const dashboardScriptText = await dashboardScript.text();
+    assert.match(dashboardScriptText, /class ModelCatalog/);
+    assert.match(dashboardScriptText, /接入客户端/);
+    assert.doesNotThrow(() => new vm.Script(dashboardScriptText), 'dashboard JavaScript should be valid');
+    const inlineScripts = [...pageHtml.matchAll(/<script\b(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)];
+    assert.ok(inlineScripts.length > 0, 'dashboard should keep its early theme initialization script');
     for (const [, script] of inlineScripts) {
       assert.doesNotThrow(() => new vm.Script(script), 'dashboard script should be valid JavaScript');
     }
