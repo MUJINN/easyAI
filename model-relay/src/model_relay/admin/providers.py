@@ -28,7 +28,7 @@ class ProviderCreateRequest(BaseModel):
 
 
 class ProviderUpdateRequest(BaseModel):
-    """部分更新；None 字段会被跳过（区别于显式传值）。"""
+    """部分更新；未提供的字段保持不变，显式 null 可清空可选字段。"""
 
     type: str | None = None
     base_url: str | None = None
@@ -46,17 +46,26 @@ class ProviderInfo(BaseModel):
     type: str
     base_url: str | None
     has_api_key: bool
+    has_stored_api_key: bool
+    api_key_env: str | None
+    api_key_env_available: bool | None
     timeout: float
     rpm: int | None
     enabled: bool
 
 
 def _to_info(backend: BackendConfig) -> ProviderInfo:
+    resolved_api_key = backend.resolve_api_key()
     return ProviderInfo(
         id=backend.id,
         type=backend.type,
         base_url=backend.base_url,
-        has_api_key=bool(backend.resolve_api_key() or backend.api_key_env),
+        has_api_key=bool(resolved_api_key),
+        has_stored_api_key=bool(backend.api_key),
+        api_key_env=backend.api_key_env,
+        api_key_env_available=(
+            bool(resolved_api_key) if backend.api_key_env else None
+        ),
         timeout=backend.timeout,
         rpm=backend.rpm,
         enabled=backend.enabled,
@@ -97,11 +106,7 @@ async def update_provider(
 ) -> ProviderInfo:
     """部分更新；enabled=false 即动态下架。"""
     repo = SqliteProviderRepo(settings.db_path)
-    fields = {
-        k: v
-        for k, v in body.model_dump().items()
-        if v is not None
-    }
+    fields = body.model_dump(exclude_unset=True)
     updated = await repo.update(provider_id, fields)
     if not updated:
         raise HTTPException(status_code=404, detail="Provider not found.")

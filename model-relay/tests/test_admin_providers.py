@@ -26,7 +26,10 @@ def test_create_list_update(client: TestClient):
     assert resp.status_code == 201, resp.text
     body = resp.json()
     assert body["id"] == "mock-c"
-    assert body["has_api_key"] is True
+    assert body["has_api_key"] is False
+    assert body["has_stored_api_key"] is False
+    assert body["api_key_env"] == "MOCK_C_KEY"
+    assert body["api_key_env_available"] is False
     assert body["rpm"] == 30
     assert body["enabled"] is True
     assert "api_key" not in body  # 不回显明文
@@ -55,6 +58,40 @@ def test_create_list_update(client: TestClient):
     assert client.patch(
         "/admin/providers/nope", json={"rpm": 1}, headers=ADMIN_HEADERS
     ).status_code == 404
+
+
+def test_provider_env_key_status_and_clear(client: TestClient, monkeypatch):
+    monkeypatch.setenv("MOCK_PROVIDER_KEY", "test-secret")
+    created = client.post(
+        "/admin/providers",
+        json={
+            "id": "env-provider",
+            "type": "openai",
+            "api_key": "stored-secret",
+            "api_key_env": "MOCK_PROVIDER_KEY",
+        },
+        headers=ADMIN_HEADERS,
+    )
+    assert created.status_code == 201
+    body = created.json()
+    assert body["has_api_key"] is True
+    assert body["has_stored_api_key"] is True
+    assert body["api_key_env"] == "MOCK_PROVIDER_KEY"
+    assert body["api_key_env_available"] is True
+    assert "test-secret" not in created.text
+    assert "stored-secret" not in created.text
+
+    cleared = client.patch(
+        "/admin/providers/env-provider",
+        json={"api_key_env": None},
+        headers=ADMIN_HEADERS,
+    )
+    assert cleared.status_code == 200
+    body = cleared.json()
+    assert body["api_key_env"] is None
+    assert body["api_key_env_available"] is None
+    assert body["has_api_key"] is True
+    assert body["has_stored_api_key"] is True
 
 
 def test_disable_provider_takes_effect(client: TestClient):

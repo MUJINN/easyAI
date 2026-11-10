@@ -12,14 +12,14 @@ import uuid
 from datetime import datetime, timezone
 from typing import AsyncIterator
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import StreamingResponse
 
 from model_relay.api.deps import get_settings_dependency
 from model_relay.auth import require_api_key
 from model_relay.billing.fx import FxService
 from model_relay.billing.pricing import estimate_cost_x10000, is_priceable
-from model_relay.billing.quota import ensure_quota_available
+from model_relay.billing.quota import reserve_quota
 from model_relay.config import BackendConfig, Settings
 from model_relay.db.catalog_repos import (
     SqliteModelEntryRepo,
@@ -101,28 +101,40 @@ async def list_models(settings: Settings = Depends(get_settings_dependency)) -> 
 async def chat_completions(
     body: ChatCompletionRequest,
     app_request: Request,
+    response: Response,
     key: KeyRecord = Depends(require_api_key),
     settings: Settings = Depends(get_settings_dependency),
 ):
     """兼容 OpenAI 的 chat completions：限流/额度/重试/fallback 全链路。"""
     started = time.perf_counter()
+    request_id = uuid.uuid4().hex
+    app_request.state.request_id = request_id
     routing = settings.load_yaml_config().routing
     governance: Governance = app_request.app.state.governance
 
     # 1. 全局 / per-key 速率限制
-    governance.check_request(key, routing.limits)
+    try:
+        governance.check_request(key, routing.limits)
+    except OpenAIHTTPException as exc:
+        await _log_unreserved_failure(
+            settings, key, body.model, request_id, _error_type(exc), started
+        )
+        raise
 
     # 2. 目录解析（DB）
     entry = await SqliteModelEntryRepo(settings.db_path).get(body.model)
     if entry is None:
+        await _log_unreserved_failure(
+            settings, key, body.model, request_id, "model_not_found", started
+        )
         raise _model_not_found(body.model)
     backends = await _backend_map(settings)
     bindings = active_bindings(entry, backends)
     if not bindings:
+        await _log_unreserved_failure(
+            settings, key, body.model, request_id, "model_not_found", started
+        )
         raise _model_not_found(body.model)
-
-    # 3. 额度预检（次数 / 金额）
-    await ensure_quota_available(settings.db_path, key)
 
     # 4. 路由顺序
     strategy = select_strategy(entry, routing.strategy)
@@ -130,21 +142,34 @@ async def chat_completions(
 
     # 5. 并发席位（流式持有到流结束）
     slots = await governance.acquire_slots(key, routing.limits)
+    reservation_id = request_id
 
     registry: ProviderRegistry = app_request.app.state.providers
     fx: FxService = app_request.app.state.fx
     try:
-        if body.stream:
-            return await _stream_with_fallback(
-                registry, entry, order, backends, body, settings, key,
-                routing.retry, governance, fx, slots, started,
+        # Transactional reservation prevents concurrent calls overspending the same quota.
+        try:
+            await reserve_quota(settings.db_path, key, reservation_id)
+        except OpenAIHTTPException as exc:
+            await _log_unreserved_failure(
+                settings, key, body.model, request_id, _error_type(exc), started
             )
-        return await _chat_with_fallback(
+            raise
+        if body.stream:
+            stream_response = await _stream_with_fallback(
+                registry, entry, order, backends, body, settings, key,
+                routing.retry, governance, fx, slots, started, reservation_id,
+            )
+            stream_response.headers["X-Request-ID"] = reservation_id
+            return stream_response
+        data = await _chat_with_fallback(
             registry, entry, order, backends, body, settings, key,
-            routing.retry, governance, fx, slots, started,
+            routing.retry, governance, fx, slots, started, reservation_id,
         )
+        response.headers["X-Request-ID"] = reservation_id
+        return data
     except BaseException:
-        # 成功路径在各 wrapper / _emit 内释放；这里兜底建立响应前的失败
+        await SqliteRequestLogRepo(settings.db_path).release_quota(reservation_id)
         governance.release_slots(slots)
         raise
 
@@ -167,6 +192,7 @@ async def _chat_with_fallback(
     fx: FxService,
     slots,
     started: float,
+    reservation_id: str,
 ):
     """非流式：筛选 → 重试 → fallback。"""
     last_error: BackendError | None = None
@@ -185,6 +211,7 @@ async def _chat_with_fallback(
 
         provider = registry.get_provider(backend)
         backend_model = binding.backend_model or entry.id
+
         try:
             data = await with_retry(
                 lambda: provider.chat_completion(backend, body, backend_model),
@@ -196,7 +223,8 @@ async def _chat_with_fallback(
                 continue
             await _log_request(
                 settings, key, entry.id, binding.backend, 0, 0, False,
-                "error", f"backend_{exc.status_code}", called, 0, started,
+                "error", f"backend_{exc.status_code}", called, 0,
+                started, reservation_id, called > 1,
             )
             # 席位由外层 chat_completions 的 except 兜底释放
             raise _backend_http_error(exc) from exc
@@ -211,11 +239,17 @@ async def _chat_with_fallback(
             settings, key, entry.id, binding.backend,
             prompt_tokens, completion_tokens, False,
             "success", None, called, cost or 0, started,
+            reservation_id, called > 1,
         )
         governance.release_slots(slots)
         return data
 
-    raise _exhausted(last_error, reasons)
+    exc = _exhausted(last_error, reasons)
+    await _log_request(
+        settings, key, entry.id, None, 0, 0, False, "error",
+        _error_type(exc), called, 0, started, reservation_id, called > 1,
+    )
+    raise exc
 
 
 async def _stream_with_fallback(
@@ -231,6 +265,7 @@ async def _stream_with_fallback(
     fx: FxService,
     slots,
     started: float,
+    reservation_id: str,
 ):
     """流式：首帧到达前可重试/可 fallback；首帧取得后绑定该后端。"""
     last_error: BackendError | None = None
@@ -267,7 +302,8 @@ async def _stream_with_fallback(
                 continue
             await _log_request(
                 settings, key, entry.id, binding.backend, 0, 0, False,
-                "error", f"backend_{exc.status_code}", called, 0, started,
+                "error", f"backend_{exc.status_code}", called, 0,
+                started, reservation_id, called > 1,
             )
             # 席位由外层 chat_completions 的 except 兜底释放
             raise _backend_http_error(exc) from exc
@@ -276,12 +312,18 @@ async def _stream_with_fallback(
         return StreamingResponse(
             _emit(
                 None if empty else first, stream, settings, key, entry.id,
-                binding, started, called, fx, governance, slots,
+                binding, started, called, called > 1, fx,
+                governance, slots, reservation_id,
             ),
             media_type="text/event-stream",
         )
 
-    raise _exhausted(last_error, reasons)
+    exc = _exhausted(last_error, reasons)
+    await _log_request(
+        settings, key, entry.id, None, 0, 0, False, "error",
+        _error_type(exc), called, 0, started, reservation_id, called > 1,
+    )
+    raise exc
 
 
 async def _empty_stream():
@@ -298,10 +340,12 @@ async def _emit(
     model: str,
     binding,
     started: float,
-    called: int,
+    attempts: int,
+    fallback: bool,
     fx: FxService,
     governance: Governance,
     slots,
+    reservation_id: str,
 ):
     """SSE 生成器：逐帧透传，流结束后估算费用、记账并释放并发席位。
 
@@ -342,20 +386,28 @@ async def _emit(
         error_type = f"backend_{exc.status_code}"
         yield f"data: {json.dumps(exc.body)}\n\n"
     finally:
-        estimated = not got_usage_frame
-        if estimated:
-            # 上游无 usage 帧（如 Ollama）：输入无法回放按 0 记，输出按字符粗估
-            prompt_tokens = 0
-            completion_tokens = completion_chars // 4
-        cost = estimate_cost_x10000(
-            binding, prompt_tokens, completion_tokens, fx
-        )
-        await _log_request(
-            settings, key, model, binding.backend,
-            prompt_tokens, completion_tokens, estimated,
-            status, error_type, called, cost or 0, started,
-        )
-        governance.release_slots(slots)
+        try:
+            estimated = not got_usage_frame
+            if estimated:
+                # 上游无 usage 帧（如 Ollama）：输入无法回放按 0 记，输出按字符粗估
+                prompt_tokens = 0
+                completion_tokens = completion_chars // 4
+            cost = estimate_cost_x10000(
+                binding, prompt_tokens, completion_tokens, fx
+            )
+            await _log_request(
+                settings, key, model, binding.backend,
+                prompt_tokens, completion_tokens, estimated,
+                status, error_type, attempts, cost or 0, started,
+                reservation_id, fallback,
+            )
+        finally:
+            try:
+                await SqliteRequestLogRepo(settings.db_path).release_quota(
+                    reservation_id
+                )
+            finally:
+                governance.release_slots(slots)
 
 
 def _count_delta_chars(chunk: dict) -> int:
@@ -372,7 +424,7 @@ async def _log_request(
     settings: Settings,
     key: KeyRecord,
     model: str,
-    backend_id: str,
+    backend_id: str | None,
     prompt_tokens: int,
     completion_tokens: int,
     tokens_estimated: bool,
@@ -381,28 +433,61 @@ async def _log_request(
     attempts: int,
     cost_usd: int,
     started: float,
+    reservation_id: str,
+    fallback: bool,
 ) -> None:
-    """写请求明细；记账失败绝不影响响应。"""
-    try:
-        await SqliteRequestLogRepo(settings.db_path).add(
-            RequestLogRecord(
-                id=uuid.uuid4().hex,
-                access_key_id=key.id,
-                tenant_id=key.tenant_id,
-                model=model,
-                backend_id=backend_id,
-                prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens,
-                tokens_estimated=tokens_estimated,
-                duration_ms=int((time.perf_counter() - started) * 1000),
-                fallback=attempts > 1,
-                attempts=attempts,
-                cost_usd=cost_usd,
-                status=status,
-                error_type=error_type,
-                created_at=datetime.now(timezone.utc).isoformat(),
-            )
+    """Persist request usage and settle its quota reservation atomically."""
+    record = RequestLogRecord(
+        id=reservation_id,
+        access_key_id=key.id,
+        tenant_id=key.tenant_id,
+        model=model,
+        backend_id=backend_id,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        tokens_estimated=tokens_estimated,
+        duration_ms=int((time.perf_counter() - started) * 1000),
+        fallback=fallback,
+        attempts=attempts,
+        cost_usd=cost_usd,
+        status=status,
+        error_type=error_type,
+        created_at=datetime.now(timezone.utc).isoformat(),
+    )
+    await SqliteRequestLogRepo(settings.db_path).settle(record, reservation_id)
+
+
+async def _log_unreserved_failure(
+    settings: Settings,
+    key: KeyRecord,
+    model: str,
+    request_id: str,
+    error_type: str,
+    started: float,
+) -> None:
+    """Log authenticated failures that occur before quota reservation."""
+    await SqliteRequestLogRepo(settings.db_path).add(
+        RequestLogRecord(
+            id=request_id,
+            access_key_id=key.id,
+            tenant_id=key.tenant_id,
+            model=model,
+            backend_id=None,
+            prompt_tokens=0,
+            completion_tokens=0,
+            tokens_estimated=False,
+            duration_ms=int((time.perf_counter() - started) * 1000),
+            fallback=False,
+            attempts=0,
+            cost_usd=0,
+            status="error",
+            error_type=error_type,
+            created_at=datetime.now(timezone.utc).isoformat(),
         )
-    except Exception:
-        # 记账是尽力而为：失败只记录日志，不向上抛
-        pass
+    )
+
+
+def _error_type(exc: OpenAIHTTPException) -> str:
+    """Return a stable error identifier for request logs."""
+    error = exc.detail.get("error", {})
+    return error.get("code") or error.get("type") or f"http_{exc.status_code}"

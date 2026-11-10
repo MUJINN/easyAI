@@ -1,8 +1,12 @@
 """M4：额度扣减（次数 / 金额）、费用估算、离线降级。"""
 
+import asyncio
 import sqlite3
 
 from fastapi.testclient import TestClient
+
+from model_relay.db.repos import KeyRecord, SqliteRequestLogRepo
+from model_relay.errors import OpenAIHTTPException
 
 ADMIN_KEY = "sk-admin-test"
 ADMIN_HEADERS = {"Authorization": f"Bearer {ADMIN_KEY}"}
@@ -50,12 +54,115 @@ def test_request_quota_exhausted_402(client: TestClient, db_path):
     second = client.post("/v1/chat/completions", json=PAYLOAD, headers=_auth(key))
     assert second.status_code == 402
     assert second.json()["error"]["code"] == "insufficient_quota"
+    assert second.headers.get("x-request-id")
 
-    # 被拒请求不记账
+    # 被拒请求不计入成功配额，但保留失败日志。
     conn = sqlite3.connect(db_path)
-    total = conn.execute("SELECT COUNT(*) FROM requests_log").fetchone()[0]
+    success_count = conn.execute(
+        "SELECT COUNT(*) FROM requests_log WHERE status = 'success'"
+    ).fetchone()[0]
+    log_count = conn.execute("SELECT COUNT(*) FROM requests_log").fetchone()[0]
     conn.close()
-    assert total == 1
+    assert success_count == 1
+    assert log_count == 2
+
+
+def test_request_quota_reservation_is_atomic(client: TestClient, db_path):
+    created = client.post(
+        "/admin/keys",
+        json={"alias": "concurrent", "quota_requests": 1},
+        headers=ADMIN_HEADERS,
+    ).json()
+    key = KeyRecord(
+        id=created["id"],
+        tenant_id=created["tenant_id"],
+        key_hash="not-used-for-reservation",
+        alias=created["alias"],
+        quota_requests=created["quota_requests"],
+        quota_amount=created["quota_amount"],
+        status=created["status"],
+        created_at=created["created_at"],
+        expires_at=created["expires_at"],
+    )
+    repo = SqliteRequestLogRepo(db_path)
+
+    async def reserve(reservation_id: str) -> bool:
+        try:
+            await repo.reserve_quota(key, reservation_id)
+            return True
+        except OpenAIHTTPException as exc:
+            assert exc.status_code == 402
+            return False
+
+    async def reserve_both() -> list[bool]:
+        return await asyncio.gather(
+            reserve("reservation-a"), reserve("reservation-b")
+        )
+
+    outcomes = asyncio.run(reserve_both())
+    assert sorted(outcomes) == [False, True]
+
+    winner = "reservation-a" if outcomes[0] else "reservation-b"
+    asyncio.run(repo.release_quota(winner))
+
+
+def test_amount_quota_reservation_protects_inflight_balance(
+    client: TestClient, db_path
+):
+    created = client.post(
+        "/admin/keys",
+        json={"alias": "amount-reservation", "quota_amount": 14},
+        headers=ADMIN_HEADERS,
+    ).json()
+    key = KeyRecord(
+        id=created["id"],
+        tenant_id=created["tenant_id"],
+        key_hash="not-used-for-reservation",
+        alias=created["alias"],
+        quota_requests=None,
+        quota_amount=created["quota_amount"],
+        status=created["status"],
+        created_at=created["created_at"],
+        expires_at=created["expires_at"],
+    )
+    repo = SqliteRequestLogRepo(db_path)
+
+    async def reserve_twice() -> tuple[bool, int | None]:
+        await repo.reserve_quota(key, "amount-a")
+        try:
+            await repo.reserve_quota(key, "amount-b")
+            return True, None
+        except OpenAIHTTPException as exc:
+            return False, exc.status_code
+        finally:
+            await repo.release_quota("amount-a")
+
+    accepted, status_code = asyncio.run(reserve_twice())
+    assert accepted is False
+    assert status_code == 402
+
+
+def test_upstream_error_releases_request_quota(client: TestClient):
+    key = _create_key(client, quota_requests=1)
+    failed = client.post(
+        "/v1/chat/completions",
+        json={
+            **PAYLOAD,
+            "model": "mock-model",
+            "messages": [{"role": "user", "content": "trigger-upstream-error"}],
+        },
+        headers=_auth(key),
+    )
+    assert failed.status_code == 401
+    assert failed.headers.get("x-request-id")
+
+    succeeding = client.post(
+        "/v1/chat/completions",
+        json={**PAYLOAD, "model": "mock-model"},
+        headers=_auth(key),
+    )
+    assert succeeding.status_code == 200
+    assert succeeding.headers.get("x-request-id")
 
 
 def test_quota_topup_via_patch(client: TestClient, db_path):
@@ -96,7 +203,9 @@ def test_amount_quota_and_cost_logged(client: TestClient, db_path):
 
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
-    rows = conn.execute("SELECT cost_usd FROM requests_log").fetchall()
+    rows = conn.execute(
+        "SELECT cost_usd FROM requests_log WHERE status = 'success'"
+    ).fetchall()
     conn.close()
     assert [r["cost_usd"] for r in rows] == [COST_PER_REQUEST] * 2
 

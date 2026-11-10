@@ -75,3 +75,33 @@ def test_create_list_revoke_roundtrip(client: TestClient):
 def test_revoke_missing_key_404(client: TestClient):
     resp = client.delete("/admin/keys/nope", headers=ADMIN_HEADERS)
     assert resp.status_code == 404
+
+
+def test_update_key_can_clear_optional_limits(client: TestClient):
+    created = client.post(
+        "/admin/keys",
+        json={
+            "alias": "limited",
+            "quota_requests": 10,
+            "quota_amount": 100,
+            "rate_rpm": 5,
+            "max_concurrency": 2,
+        },
+        headers=ADMIN_HEADERS,
+    ).json()
+
+    updated = client.patch(
+        f"/admin/keys/{created['id']}",
+        json={
+            "quota_requests": None,
+            "quota_amount": None,
+            "rate_rpm": None,
+            "max_concurrency": None,
+        },
+        headers=ADMIN_HEADERS,
+    )
+    assert updated.status_code == 200
+    assert updated.json()["quota_requests"] is None
+    assert updated.json()["quota_amount"] is None
+    assert updated.json()["rate_rpm"] is None
+    assert updated.json()["max_concurrency"] is None

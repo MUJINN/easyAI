@@ -22,6 +22,7 @@ def _chat(client: TestClient, headers: dict, model: str = "mock-model",
 def test_usage_requires_admin_key(client: TestClient):
     assert client.get("/admin/usage").status_code == 401
     assert client.get("/admin/logs").status_code == 401
+    assert client.get("/admin/billing").status_code == 401
 
 
 def test_usage_grouped_by_model(client: TestClient, api_key):
@@ -118,7 +119,39 @@ def test_logs_include_cost_and_fallback(client: TestClient, auth_headers):
     assert fb["status"] == "success"
     assert fb["cost_usd"] == 14
     assert fb["fallback"] is True
+    assert fb["attempts"] == 2
     # hello：主后端成功，attempts=1
     direct = next(i for i in items if i["attempts"] == 1)
     assert direct["cost_usd"] == 14
     assert direct["fallback"] is False
+
+
+def test_billing_returns_successful_charges_and_totals(client: TestClient, api_key):
+    headers = {"Authorization": "Bearer " + api_key}
+    successful = _chat(client, headers, model="fallback-model")
+    assert successful.status_code == 200
+    failed = _chat(
+        client,
+        headers,
+        model="mock-model",
+        content="trigger-upstream-error",
+    )
+    assert failed.status_code == 401
+
+    keys = client.get("/admin/keys", headers=ADMIN_HEADERS).json()
+    key_id = next(item["id"] for item in keys if item["alias"] == "test")
+    response = client.get(
+        f"/admin/billing?key_id={key_id}",
+        headers=ADMIN_HEADERS,
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == {
+        "requests": 1,
+        "prompt_tokens": 10,
+        "completion_tokens": 4,
+        "cost_usd": 14,
+    }
+    assert len(body["items"]) == 1
+    assert body["items"][0]["access_key_id"] == key_id
+    assert body["items"][0]["cost_usd"] == 14

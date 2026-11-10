@@ -47,6 +47,36 @@ class LogPage(BaseModel):
     items: list[LogItem]
 
 
+class BillingItem(BaseModel):
+    id: str
+    access_key_id: str | None
+    tenant_id: str
+    model: str
+    backend_id: str | None
+    prompt_tokens: int
+    completion_tokens: int
+    tokens_estimated: bool
+    duration_ms: int
+    fallback: bool
+    attempts: int
+    cost_usd: int
+    created_at: str
+
+
+class BillingTotals(BaseModel):
+    requests: int
+    prompt_tokens: int
+    completion_tokens: int
+    cost_usd: int
+
+
+class BillingPage(BaseModel):
+    total: BillingTotals
+    items: list[BillingItem]
+    limit: int
+    offset: int
+
+
 @router.get("/usage", response_model=list[UsageRow])
 async def usage(
     group_by: GroupBy = "model",
@@ -86,3 +116,25 @@ async def logs(
         filters, limit, offset
     )
     return LogPage(total=total, items=[LogItem(**i) for i in items])
+
+
+@router.get("/billing", response_model=BillingPage)
+async def billing(
+    key_id: str | None = Query(default=None),
+    start: str | None = Query(default=None, description="ISO 时间起点（含）"),
+    end: str | None = Query(default=None, description="ISO 时间终点（含）"),
+    limit: int = Query(default=50, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    _: None = Depends(require_admin_key),
+    settings: Settings = Depends(get_settings_dependency),
+) -> BillingPage:
+    """Return successful charge records and aggregated bill totals."""
+    totals, items = await SqliteRequestLogRepo(settings.db_path).billing_page(
+        key_id, start, end, limit, offset
+    )
+    return BillingPage(
+        total=BillingTotals(**totals),
+        items=[BillingItem(**item) for item in items],
+        limit=limit,
+        offset=offset,
+    )

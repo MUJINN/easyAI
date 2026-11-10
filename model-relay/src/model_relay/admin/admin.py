@@ -86,7 +86,10 @@ async def admin_health() -> dict[str, str]:
 
 
 @router.get("/info")
-async def admin_info(settings: Settings = Depends(get_settings_dependency)) -> dict:
+async def admin_info(
+    _: None = Depends(require_admin_key),
+    settings: Settings = Depends(get_settings_dependency),
+) -> dict:
     """返回应用元数据与配置概览。"""
     config = settings.load_yaml_config()
     return {
@@ -155,7 +158,7 @@ async def update_key(
 ) -> KeyInfo:
     """部分更新 Key：配额 / 限流 / 过期时间 / 状态（可重新启用）。"""
     repo = SqliteAccessKeyRepo(settings.db_path)
-    fields = {k: v for k, v in body.model_dump().items() if v is not None}
+    fields = body.model_dump(exclude_unset=True)
     if not await repo.update(key_id, fields):
         raise HTTPException(status_code=404, detail="Key not found.")
     found = await repo.get_by_id(key_id)

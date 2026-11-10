@@ -146,6 +146,7 @@ def test_retry_recovers_from_transient(client: TestClient, auth_headers, db_path
         "/v1/chat/completions", json=payload, headers=auth_headers
     )
     assert response.status_code == 200
+    request_id = response.headers["x-request-id"]
     assert response.json()["choices"][0]["message"]["content"] == "Hello from A!"
 
     conn = sqlite3.connect(db_path)
@@ -153,6 +154,7 @@ def test_retry_recovers_from_transient(client: TestClient, auth_headers, db_path
     rows = conn.execute("SELECT * FROM requests_log").fetchall()
     conn.close()
     assert len(rows) == 1
+    assert rows[0]["id"] == request_id
     assert rows[0]["backend_id"] == "backend-a"
     assert rows[0]["fallback"] == 0  # 重试不是 fallback
     assert rows[0]["attempts"] == 1

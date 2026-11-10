@@ -1,6 +1,7 @@
 """测试夹具：临时 SQLite + 临时配置（种子导入 DB）+ Mock 上游 + 测试 Key。"""
 
 import json
+from pathlib import Path
 
 import httpx
 import pytest
@@ -286,9 +287,8 @@ def db_path(tmp_path) -> str:
     return str(tmp_path / "relay.db")
 
 
-@pytest.fixture
-def client(tmp_path, monkeypatch, db_path):
-    """构造带临时状态与 Mock 上游的应用客户端。"""
+def _setup_env(tmp_path, monkeypatch, db_path, static_dir: Path | None = None):
+    """搭建临时测试环境：config.yaml + 环境变量 + 静态目录开关。"""
     config_path = tmp_path / "config.yaml"
     config_path.write_text(CONFIG_YAML, encoding="utf-8")
     monkeypatch.setenv("MODEL_RELAY_DB_PATH", str(db_path))
@@ -299,16 +299,48 @@ def client(tmp_path, monkeypatch, db_path):
     monkeypatch.setenv("MOCK_B_KEY", "key-b")
     # lifespan 中创建的 FxService 走 mock，避免真实网络请求
     monkeypatch.setattr("model_relay.main.FxService", _make_fx)
+    # 静态托管行为由测试显式控制（默认不存在产物目录，与本地构建状态无关）
+    monkeypatch.setattr(
+        "model_relay.main.STATIC_DIR",
+        static_dir or tmp_path / "static-nonexistent",
+    )
     get_settings.cache_clear()
     # round-robin 计数是进程内全局状态，每个测试从干净起点开始
     reset_round_robin()
 
+
+@pytest.fixture
+def client(tmp_path, monkeypatch, db_path):
+    """构造带临时状态与 Mock 上游的应用客户端。"""
+    _setup_env(tmp_path, monkeypatch, db_path)
     app = create_app()
     with TestClient(app) as test_client:
         # 用注入 MockTransport 的 registry 替换 lifespan 中创建的真实 registry
         transport = httpx.MockTransport(make_upstream_handler())
         mock_client = httpx.AsyncClient(transport=transport)
         app.state.providers = ProviderRegistry(client=mock_client)
+        yield test_client
+
+    get_settings.cache_clear()
+
+
+@pytest.fixture
+def static_client(tmp_path, monkeypatch, db_path):
+    """构造带伪构建产物的应用客户端（验证 SPA 兜底与静态文件托管）。"""
+    static_dir = tmp_path / "static"
+    (static_dir / "assets").mkdir(parents=True)
+    (static_dir / "index.html").write_text(
+        "<!doctype html><html><body>console</body></html>", encoding="utf-8"
+    )
+    (static_dir / "favicon.svg").write_text(
+        "<svg xmlns='http://www.w3.org/2000/svg'/>", encoding="utf-8"
+    )
+    (static_dir / "assets" / "app.js").write_text(
+        "console.log('app')", encoding="utf-8"
+    )
+    _setup_env(tmp_path, monkeypatch, db_path, static_dir=static_dir)
+    app = create_app()
+    with TestClient(app) as test_client:
         yield test_client
 
     get_settings.cache_clear()

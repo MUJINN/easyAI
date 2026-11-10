@@ -80,10 +80,19 @@ CREATE TABLE IF NOT EXISTS requests_log (
     created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS quota_reservations (
+    id TEXT PRIMARY KEY,
+    access_key_id TEXT NOT NULL,
+    reserved_amount INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_requests_log_created_at
     ON requests_log (created_at);
 CREATE INDEX IF NOT EXISTS idx_requests_log_access_key
     ON requests_log (access_key_id);
+CREATE INDEX IF NOT EXISTS idx_quota_reservations_access_key
+    ON quota_reservations (access_key_id);
 CREATE INDEX IF NOT EXISTS idx_model_backends_model
     ON model_backends (model_id);
 """

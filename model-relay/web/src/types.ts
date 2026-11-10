@@ -32,6 +32,9 @@ export interface ProviderInfo {
   type: string;
   base_url: string | null;
   has_api_key: boolean;
+  has_stored_api_key: boolean;
+  api_key_env: string | null;
+  api_key_env_available: boolean | null;
   timeout: number;
   rpm: number | null;
   enabled: boolean;
@@ -97,6 +100,36 @@ export interface UsageRow {
   prompt_tokens: number;
   completion_tokens: number;
   cost_usd: number;
+}
+
+export interface BillingTotals {
+  requests: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  cost_usd: number;
+}
+
+export interface BillingItem {
+  id: string;
+  access_key_id: string | null;
+  tenant_id: string;
+  model: string;
+  backend_id: string | null;
+  prompt_tokens: number;
+  completion_tokens: number;
+  tokens_estimated: boolean;
+  duration_ms: number;
+  fallback: boolean;
+  attempts: number;
+  cost_usd: number;
+  created_at: string;
+}
+
+export interface BillingPage {
+  total: BillingTotals;
+  items: BillingItem[];
+  limit: number;
+  offset: number;
 }
 
 export interface LogItem {

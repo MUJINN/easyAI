@@ -6,12 +6,16 @@
 
 需求文档见 [requirements.md](requirements.md)。
 
-## 状态：M3
+## 状态：M4 收尾中
 
 - ✅ M1：仓库骨架、配置加载、OpenAI 兼容 hello-world 网关
 - ✅ M2：首个真实后端（OpenAI / DeepSeek / Ollama，OpenAI 兼容协议）、chat/completions 转发 + SSE 流式、Bearer Key 鉴权、基础记账（SQLite）
 - ✅ M3：模型目录多后端映射、fallback（429 / 5xx / 连接故障自动切换）、简单路由策略（priority / round-robin / weight / random）、后端动态下架
-- ⏳ M4：管理控制台、限流、重试、额度扣减
+- ✅ 回归修复：修复静态前端产物存在时 `/admin/info` 未正确要求 Admin Key 的安全问题，并通过测试验证
+- ✅ M4（已落地）：三级限流与并发控制、重试、并发安全的额度预留/结算、用量/账单/日志 API，以及 Key、Provider、模型目录管理控制台
+- ⏳ M4（待完成）：trace id 向上游传播、运行指标，以及进程异常退出后的额度预留恢复
+
+额度预留在正常成功/失败路径会结算或释放；若进程在请求处理中异常退出，预留记录目前可能残留并持续占用该 Key 的额度。金额配额预留采取保守策略，单个进行中的请求占用全部剩余金额，直至请求结束。
 
 ## 快速开始
 
@@ -97,6 +101,8 @@ pytest
 docker compose up --build
 ```
 
+Docker 构建会先编译 `web/` 控制台，再将静态资源打包进 FastAPI 镜像。
+
 ## 管理 API
 
 | 端点 | 说明 |
@@ -105,6 +111,12 @@ docker compose up --build
 | `GET /admin/info` | 元数据与配置概览 |
 | `POST /admin/keys` | 创建 Access Key（明文仅返回一次） |
 | `GET /admin/keys` | 列出 Access Key |
+| `PATCH /admin/keys/{id}` | 更新配额、限流与状态 |
 | `DELETE /admin/keys/{id}` | 吊销 Access Key |
+| `/admin/providers` | Provider 增删改查与连通性测试 |
+| `/admin/models` | 模型目录与上游绑定管理 |
+| `GET /admin/usage` | 按模型、Key、后端或日期汇总用量 |
+| `GET /admin/billing` | 分页查询成功请求账单与聚合费用 |
+| `GET /admin/logs` | 分页查询成功/失败请求日志 |
 
 管理 API 全部使用 `Authorization: Bearer $MODEL_RELAY_ADMIN_KEY` 鉴权。

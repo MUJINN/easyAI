@@ -94,6 +94,14 @@ def test_key_rate_limit_429(client: TestClient):
     error = second.json()["error"]
     assert error["code"] == "rate_limit_exceeded"
     assert "Retry-After" in second.headers
+    request_id = second.headers["x-request-id"]
+    failed_logs = client.get(
+        "/admin/logs?status=error", headers=ADMIN_HEADERS
+    ).json()["items"]
+    assert any(
+        item["id"] == request_id and item["error_type"] == "rate_limit_exceeded"
+        for item in failed_logs
+    )
 
 
 # ---- 集成：global 限流（运行期改配置立即生效）----

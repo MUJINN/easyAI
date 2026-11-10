@@ -7,6 +7,8 @@ __pycache__/
 # Node
 node_modules/
 dist/
+# 前端构建产物（由 vite 写入包内，交给 Docker 多阶段构建）
+src/model_relay/static/
 
 # 环境与本地配置
 .env

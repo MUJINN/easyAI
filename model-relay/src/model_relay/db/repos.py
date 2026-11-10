@@ -8,9 +8,11 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 from model_relay.db import get_connection
+from model_relay.errors import openai_error
 
 
 @dataclass
@@ -173,32 +175,128 @@ class SqliteRequestLogRepo(RequestLogRepo):
 
     async def add(self, record: RequestLogRecord) -> None:
         async with get_connection(self.db_path) as conn:
+            await self._insert(conn, record)
+            await conn.commit()
+
+    async def reserve_quota(self, key: KeyRecord, reservation_id: str) -> None:
+        """Atomically reserve an eligible request slot and remaining spend budget."""
+        async with get_connection(self.db_path) as conn:
+            await conn.execute("BEGIN IMMEDIATE")
+            try:
+                cursor = await conn.execute(
+                    """SELECT COUNT(*) AS cnt,
+                              COALESCE(SUM(cost_usd), 0) AS amount
+                       FROM requests_log
+                       WHERE access_key_id = ? AND status = 'success'""",
+                    (key.id,),
+                )
+                usage = await cursor.fetchone()
+                cursor = await conn.execute(
+                    """SELECT COUNT(*) AS cnt,
+                              COALESCE(SUM(reserved_amount), 0) AS amount
+                       FROM quota_reservations WHERE access_key_id = ?""",
+                    (key.id,),
+                )
+                pending = await cursor.fetchone()
+
+                used_requests = usage["cnt"] + pending["cnt"]
+                if (
+                    key.quota_requests is not None
+                    and used_requests >= key.quota_requests
+                ):
+                    raise openai_error(
+                        402,
+                        f"Request quota exhausted "
+                        f"({usage['cnt']}/{key.quota_requests}).",
+                        error_type="insufficient_quota",
+                        code="insufficient_quota",
+                    )
+
+                reserved_amount = 0
+                if key.quota_amount is not None:
+                    available = key.quota_amount - usage["amount"] - pending["amount"]
+                    if available <= 0:
+                        raise openai_error(
+                            402,
+                            "Balance exhausted. Please top up or use another key.",
+                            error_type="insufficient_quota",
+                            code="insufficient_quota",
+                        )
+                    # Reserve the remaining balance so concurrent calls cannot all
+                    # spend against the same uncommitted balance.
+                    reserved_amount = available
+
+                await conn.execute(
+                    """INSERT INTO quota_reservations
+                       (id, access_key_id, reserved_amount, created_at)
+                       VALUES (?, ?, ?, ?)""",
+                    (
+                        reservation_id,
+                        key.id,
+                        reserved_amount,
+                        datetime.now(timezone.utc).isoformat(),
+                    ),
+                )
+                await conn.commit()
+            except BaseException:
+                await conn.rollback()
+                raise
+
+    async def release_quota(self, reservation_id: str) -> None:
+        """Release an unused reservation (for routing/provider failures)."""
+        async with get_connection(self.db_path) as conn:
             await conn.execute(
-                """INSERT INTO requests_log
-                   (id, access_key_id, tenant_id, model, backend_id,
-                    prompt_tokens, completion_tokens, tokens_estimated,
-                    duration_ms, fallback, attempts, cost_usd,
-                    status, error_type, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    record.id,
-                    record.access_key_id,
-                    record.tenant_id,
-                    record.model,
-                    record.backend_id,
-                    record.prompt_tokens,
-                    record.completion_tokens,
-                    int(record.tokens_estimated),
-                    record.duration_ms,
-                    int(record.fallback),
-                    record.attempts,
-                    record.cost_usd,
-                    record.status,
-                    record.error_type,
-                    record.created_at,
-                ),
+                "DELETE FROM quota_reservations WHERE id = ?", (reservation_id,)
             )
             await conn.commit()
+
+    async def settle(
+        self, record: RequestLogRecord, reservation_id: str
+    ) -> None:
+        """Persist the bill and release its reservation in one transaction."""
+        async with get_connection(self.db_path) as conn:
+            await conn.execute("BEGIN IMMEDIATE")
+            try:
+                await self._insert(conn, record)
+                cursor = await conn.execute(
+                    "DELETE FROM quota_reservations WHERE id = ?",
+                    (reservation_id,),
+                )
+                if cursor.rowcount != 1:
+                    raise RuntimeError(
+                        f"Quota reservation {reservation_id!r} was not found."
+                    )
+                await conn.commit()
+            except BaseException:
+                await conn.rollback()
+                raise
+
+    async def _insert(self, conn, record: RequestLogRecord) -> None:
+        await conn.execute(
+            """INSERT INTO requests_log
+               (id, access_key_id, tenant_id, model, backend_id,
+                prompt_tokens, completion_tokens, tokens_estimated,
+                duration_ms, fallback, attempts, cost_usd,
+                status, error_type, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                record.id,
+                record.access_key_id,
+                record.tenant_id,
+                record.model,
+                record.backend_id,
+                record.prompt_tokens,
+                record.completion_tokens,
+                int(record.tokens_estimated),
+                record.duration_ms,
+                int(record.fallback),
+                record.attempts,
+                record.cost_usd,
+                record.status,
+                record.error_type,
+                record.created_at,
+            ),
+        )
 
     async def get_key_usage(self, access_key_id: str) -> tuple[int, int]:
         """成功请求次数与累计费用（USD×10000），用于额度预检。"""
@@ -245,6 +343,50 @@ class SqliteRequestLogRepo(RequestLogRepo):
             cursor = await conn.execute(sql, values)
             rows = await cursor.fetchall()
         return [dict(r) for r in rows]
+
+    async def billing_page(
+        self,
+        key_id: str | None = None,
+        start: str | None = None,
+        end: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[dict, list[dict]]:
+        """Return successful bill records and totals for the selected period."""
+        clauses = ["status = 'success'"]
+        values: list[Any] = []
+        if key_id:
+            clauses.append("access_key_id = ?")
+            values.append(key_id)
+        if start:
+            clauses.append("created_at >= ?")
+            values.append(start)
+        if end:
+            clauses.append("created_at <= ?")
+            values.append(end)
+        where = "WHERE " + " AND ".join(clauses)
+
+        async with get_connection(self.db_path) as conn:
+            cursor = await conn.execute(
+                f"""SELECT COUNT(*) AS requests,
+                           COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens,
+                           COALESCE(SUM(completion_tokens), 0) AS completion_tokens,
+                           COALESCE(SUM(cost_usd), 0) AS cost_usd
+                    FROM requests_log {where}""",
+                values,
+            )
+            totals = dict(await cursor.fetchone())
+            cursor = await conn.execute(
+                f"""SELECT id, access_key_id, tenant_id, model, backend_id,
+                           prompt_tokens, completion_tokens, tokens_estimated,
+                           duration_ms, fallback, attempts, cost_usd, created_at
+                    FROM requests_log {where}
+                    ORDER BY created_at DESC, id DESC
+                    LIMIT ? OFFSET ?""",
+                (*values, limit, offset),
+            )
+            items = await cursor.fetchall()
+        return totals, [dict(row) for row in items]
 
     async def query_logs(
         self,
