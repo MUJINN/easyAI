@@ -76,6 +76,19 @@
           </ul>
           <button id="open-internlm" type="button">接入 InternLM</button>
         </article>
+        <article class="entry-card">
+          <div class="entry-card-top">
+            <div class="entry-mark" aria-hidden="true">SC</div>
+            <span class="entry-badge key-required">需要服务商 API Key</span>
+          </div>
+          <h3>超算互联网（SCNet）</h3>
+          <p>使用 SCNet 模型 API Key，在本机加密管理凭据并读取可用模型。</p>
+          <ul>
+            <li>支持 OpenAI 与 Anthropic 兼容接口</li>
+            <li>Key 的模型范围由 SCNet 控制台配置</li>
+          </ul>
+          <button id="open-scnet" type="button">接入 SCNet</button>
+        </article>
       </div>
       <div class="home-provider-management">
         <button id="open-providers" type="button">管理所有服务商与本机凭据</button>
@@ -131,7 +144,7 @@
       <div class="provider-heading">
         <div>
           <h2 id="vault-page-title">服务商凭据管理</h2>
-          <p>在这里创建或解锁本机凭据库，并分别管理 SenseNova 与 InternLM 的 API Key。</p>
+          <p>在这里创建或解锁本机凭据库，并管理 SenseNova、InternLM 与 SCNet 的 API Key。</p>
         </div>
       </div>
       <section class="flow-panel" aria-labelledby="vault-title">
@@ -157,11 +170,17 @@
             <span>InternLM API Key</span>
             <input id="internlm-api-key" type="password" autocomplete="off" spellcheck="false" placeholder="输入或替换服务商 Key">
           </label>
+          <label class="vault-field" for="scnet-api-key">
+            <span>SCNet 模型 API Key</span>
+            <input id="scnet-api-key" type="password" autocomplete="off" spellcheck="false" placeholder="输入或替换 SCNet 模型 API Key">
+          </label>
           <div class="vault-actions">
             <button id="save-sensenova-key" class="primary" type="button">加密保存 SenseNova Key</button>
             <button id="delete-sensenova-key" type="button">删除已保存 SenseNova Key</button>
             <button id="save-internlm-key" class="primary" type="button">加密保存 InternLM Key</button>
             <button id="delete-internlm-key" type="button">删除已保存 InternLM Key</button>
+            <button id="save-scnet-key" class="primary" type="button">加密保存 SCNet Key</button>
+            <button id="delete-scnet-key" type="button">删除已保存 SCNet Key</button>
             <button id="vault-lock-button" type="button">锁定凭据库</button>
             <span id="vault-key-status" class="vault-state" role="status" aria-live="polite"></span>
           </div>
@@ -171,6 +190,7 @@
         <span class="muted">前往服务商页面：</span>
         <button id="vault-open-sensenova" type="button">SenseNova</button>
         <button id="vault-open-internlm" type="button">InternLM</button>
+        <button id="vault-open-scnet" type="button">SCNet</button>
       </nav>
     </section>
 
@@ -324,6 +344,67 @@
             </div>
             <div id="internlm-test-result" class="result hidden" role="status"></div>
             <footer>测试提示词会发送给 InternLM 并可能消耗额度；响应仅显示在本地页面，网关日志不记录提示词或响应内容。</footer>
+          </details>
+        </section>
+      </section>
+
+      <section id="scnet-view" aria-labelledby="scnet-page-title" hidden>
+        <div class="provider-page-heading">
+          <div class="provider-heading">
+            <div>
+              <h2 id="scnet-page-title">超算互联网（SCNet）</h2>
+              <p>独立的 SCNet 凭据、模型目录与 OpenAI / Anthropic 兼容连接测试页面。</p>
+            </div>
+          </div>
+          <button class="manage-provider-credentials" type="button" data-open-vault>管理本机凭据</button>
+        </div>
+        <section id="scnet-flow" class="flow-panel" aria-labelledby="scnet-flow-title">
+          <div class="provider-heading">
+            <h3 id="scnet-flow-title">SCNet 模型 API</h3>
+            <p>OpenAI 兼容：<code>https://api.scnet.cn/api/llm/v1</code><br>Anthropic 兼容：<code>https://api.scnet.cn/api/llm/anthropic</code></p>
+            <span id="scnet-provider-state" class="provider-state">检查凭据状态中…</span>
+          </div>
+          <p class="flow-intro">在 SCNet 控制台创建模型 API Key，并按需设置可访问的模型范围。Key 将加密保存在本机凭据库中；模型列表会按此 Key 的权限返回。</p>
+          <div class="flow-content">
+            <p><a href="https://www.scnet.cn/ui/console/index.html#/llm/apikeys" target="_blank" rel="noopener noreferrer">打开 SCNet 模型 API Key 管理</a></p>
+            <p>保存 Key 后，可在下方加载模型并进行连接测试。目录中的模型 ID 会加上 <code>scnet/</code> 前缀，用于本地网关区分上游；配置客户端时请使用完整 ID。</p>
+            <p>Token Plan 专属 Key 有独立的使用范围限制，请按 SCNet 官方规则使用。</p>
+          </div>
+          <div class="prototype-notice">测试提示词会发送到 SCNet，可能消耗费用或套餐额度。模型权限、计费和可用性以 SCNet 控制台及官方说明为准。</div>
+        </section>
+        <section id="scnet-catalog-section" class="flow-panel" aria-labelledby="scnet-catalog-title" hidden>
+          <div class="provider-heading">
+            <h3 id="scnet-catalog-title">SCNet 模型目录</h3>
+            <p>从 SCNet 模型列表接口读取当前 API Key 可访问的模型。</p>
+          </div>
+          <div class="bar">
+            <button id="load-scnet-catalog" class="primary" type="button">加载 SCNet 模型目录</button>
+            <span id="scnet-catalog-status" class="muted" role="status"></span>
+          </div>
+          <div class="bar">
+            <input id="scnet-search" type="search" placeholder="搜索模型或提供方" aria-label="搜索 SCNet 模型">
+          </div>
+          <div class="settings selection-toolbar">
+            <span id="scnet-selection-status" class="muted">点击卡片选中；按住鼠标左键拖框，Shift 点击可范围多选。</span>
+            <div class="selection-actions">
+              <button id="scnet-select-visible-button" type="button">全选当前结果</button>
+              <button id="scnet-selected-only-button" type="button" aria-pressed="false">仅看已选</button>
+              <button id="scnet-top-test-button" class="primary" aria-label="测试已选模型" disabled>测试</button>
+              <button id="scnet-top-stop-button" aria-label="停止批量测试" hidden>停止测试</button>
+              <button id="scnet-clear-selection" aria-label="清空测试选择" disabled>清空选择</button>
+            </div>
+          </div>
+          <section id="scnet-catalog" class="catalog" role="group" aria-label="SCNet 模型列表，可多选测试">
+            <div class="empty">点击上方按钮加载 SCNet 模型目录</div>
+          </section>
+          <details class="panel" style="margin-top: 16px;">
+            <summary class="section-title" style="cursor: pointer; user-select: none;">问答测试（批量测试将使用此提示词）</summary>
+            <div class="test-grid">
+              <textarea id="scnet-test-prompt" maxlength="2000" aria-label="测试提示词" placeholder="请输入任意测试提示词"></textarea>
+              <button id="scnet-test-button" class="primary" disabled>发送一次测试请求</button>
+            </div>
+            <div id="scnet-test-result" class="result hidden" role="status"></div>
+            <footer>测试提示词会发送给 SCNet 并可能消耗费用或额度；响应仅显示在本地页面，网关日志不记录提示词或响应内容。</footer>
           </details>
         </section>
       </section>

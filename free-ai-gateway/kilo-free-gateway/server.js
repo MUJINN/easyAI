@@ -50,6 +50,7 @@ const VAULT_FILE = process.env.EASYAI_VAULT_PATH || pathModule.join(USER_DATA_DI
 const VAULT_PROVIDERS = {
   sensenova: 'SenseNova（商汤日日新）',
   internlm: '书生·端砚（InternLM）',
+  scnet: '超算互联网（SCNet）',
 };
 const VAULT_PASSWORD_MIN_LENGTH = 12;
 
@@ -60,6 +61,9 @@ const SENSENOVA_BASE = process.env.SENSENOVA_BASE || '/v1';
 // InternLM (书生·端砚) 配置
 const INTERNLM_HOST = process.env.INTERNLM_HOST || 'discovery-api.intern-ai.org.cn';
 const INTERNLM_BASE = process.env.INTERNLM_BASE || '/v1';
+const SCNET_HOST = process.env.SCNET_HOST || 'api.scnet.cn';
+const SCNET_OPENAI_BASE = '/api/llm/v1';
+const SCNET_ANTHROPIC_BASE = '/api/llm/anthropic';
 
 let vaultKey = null;
 let vaultSecrets = null;
@@ -77,6 +81,12 @@ const SENSENOVA_UPSTREAM_HEADERS = {
 };
 
 const INTERNLM_UPSTREAM_HEADERS = {
+  'content-type': 'application/json',
+  accept: '*/*',
+  'user-agent': 'kilo-free-gateway/1.0',
+};
+
+const SCNET_UPSTREAM_HEADERS = {
   'content-type': 'application/json',
   accept: '*/*',
   'user-agent': 'kilo-free-gateway/1.0',
@@ -286,6 +296,37 @@ function requestInternLM(pathname, method = 'GET', body = undefined, apiKey = un
   });
 }
 
+function requestSCNet(pathname, method = 'GET', body = undefined, apiKey = undefined, base = SCNET_OPENAI_BASE) {
+  return new Promise((resolve, reject) => {
+    const payload = body === undefined ? null : JSON.stringify(body);
+    const headers = { ...SCNET_UPSTREAM_HEADERS };
+    if (apiKey) headers.authorization = `Bearer ${apiKey}`;
+    if (anthropic) {
+      headers['anthropic-version'] = anthropicVersion;
+      if (anthropicBeta) headers['anthropic-beta'] = anthropicBeta;
+    }
+    if (payload) headers['content-length'] = Buffer.byteLength(payload);
+    if (method !== 'GET') headers.accept = 'text/event-stream';
+
+    const req = https.request(
+      { hostname: SCNET_HOST, path: base + pathname, method, headers },
+      (up) => {
+        const chunks = [];
+        up.on('data', (chunk) => chunks.push(chunk));
+        up.on('end', () => resolve({
+          statusCode: up.statusCode || 502,
+          headers: up.headers,
+          body: Buffer.concat(chunks).toString('utf8'),
+        }));
+      },
+    );
+    req.setTimeout(30000, () => req.destroy(new Error('SCNet request timed out')));
+    req.on('error', reject);
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
 function forwardedHeaders(up, stream) {
   const headers = {};
   for (const name of ['content-type', 'retry-after', 'x-request-id']) {
@@ -398,6 +439,42 @@ function upstreamInternLM(pathname, method, body, res, { stream, model, apiKey }
   req.end();
 }
 
+/** 转发到 SCNet 的 OpenAI 或 Anthropic 兼容 API。 */
+function upstreamSCNet(pathname, method, body, res, {
+  stream, model, apiKey, anthropic = false, anthropicVersion = '2023-06-01', anthropicBeta,
+}) {
+  const payload = body === undefined ? null : JSON.stringify(body);
+  const headers = { ...SCNET_UPSTREAM_HEADERS };
+  if (apiKey) headers.authorization = `Bearer ${apiKey}`;
+  if (payload) headers['content-length'] = Buffer.byteLength(payload);
+  if (stream) headers.accept = 'text/event-stream';
+  const base = anthropic ? SCNET_ANTHROPIC_BASE : SCNET_OPENAI_BASE;
+  const startedAt = Date.now();
+
+  const req = https.request(
+    { hostname: SCNET_HOST, path: base + pathname, method, headers },
+    (up) => {
+      res.writeHead(up.statusCode || 502, forwardedHeaders(up, stream));
+      up.pipe(res);
+      up.on('end', () => {
+        const retryAfter = up.headers['retry-after'];
+        log(`<- SCNet ${up.statusCode} ${method} ${pathname} model=${model || '-'} ${Date.now() - startedAt}ms${retryAfter ? ` retry-after=${retryAfter}` : ''}`);
+      });
+    },
+  );
+
+  req.on('error', (e) => {
+    log(`!! SCNet upstream error ${method} ${pathname} model=${model || '-'}: ${e.message}`);
+    if (!res.headersSent) {
+      res.writeHead(502, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: { type: 'upstream_error', message: e.message } }));
+    } else res.end();
+  });
+
+  if (payload) req.write(payload);
+  req.end();
+}
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -481,6 +558,14 @@ function isInternLMModel(modelId) {
   if (!modelId || typeof modelId !== 'string') return false;
   // InternLM 模型通常以 internlm/ 开头
   return modelId.startsWith('internlm/');
+}
+
+function isSCNetModel(modelId) {
+  return typeof modelId === 'string' && modelId.startsWith('scnet/');
+}
+
+function stripSCNetPrefix(modelId) {
+  return isSCNetModel(modelId) ? modelId.slice('scnet/'.length) : modelId;
 }
 
 /** 本地口令校验（仅在设置了 LOCAL_KEY 时生效）。 */
@@ -772,6 +857,50 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { data: models, checked_at: new Date().toISOString() }, { 'cache-control': 'no-store' });
     }
 
+    // SCNet 使用受 API Key 鉴权的 OpenAI 兼容模型列表接口。
+    if (path === '/api/scnet/catalog' && req.method === 'GET') {
+      if (!vaultKey || !vaultSecrets) {
+        return json(res, 423, { error: { type: 'vault_locked', message: '请先解锁本机凭据库' } }, { 'cache-control': 'no-store' });
+      }
+      const scnetKey = vaultSecrets.scnet;
+      if (!scnetKey) {
+        return json(res, 404, { error: { type: 'not_configured', message: '尚未配置 SCNet API Key' } }, { 'cache-control': 'no-store' });
+      }
+      let up;
+      try {
+        up = await requestSCNet('/models', 'GET', undefined, scnetKey);
+      } catch (e) {
+        log(`!! SCNet error GET /models: ${e.message}`);
+        return json(res, 502, { error: { type: 'upstream_error', message: e.message } }, { 'cache-control': 'no-store' });
+      }
+      const retryAfter = up.headers['retry-after'];
+      log(`<- SCNet ${up.statusCode} GET /models${retryAfter ? ` retry-after=${retryAfter}` : ''}`);
+      if (up.statusCode < 200 || up.statusCode >= 300) {
+        return json(res, up.statusCode, {
+          error: { type: 'upstream_error', message: 'Could not load SCNet model catalog', details: up.body },
+          retry_after: up.headers['retry-after'] || null,
+        }, retryAfter ? { 'retry-after': retryAfter } : { 'cache-control': 'no-store' });
+      }
+      let catalog;
+      try {
+        catalog = JSON.parse(up.body);
+      } catch {
+        return json(res, 502, { error: { type: 'upstream_error', message: 'SCNet model catalog has an invalid format' } }, { 'cache-control': 'no-store' });
+      }
+      if (!Array.isArray(catalog.data)) {
+        return json(res, 502, { error: { type: 'upstream_error', message: 'SCNet model catalog data is not an array' } }, { 'cache-control': 'no-store' });
+      }
+      const models = catalog.data
+        .filter((model) => typeof model?.id === 'string' && model.id.trim())
+        .map((model) => ({
+        ...model,
+        id: `scnet/${model.id.replace(/^scnet\//i, '')}`,
+        provider: 'scnet',
+        upstream: 'scnet',
+      }));
+      return json(res, 200, { data: models, checked_at: new Date().toISOString() }, { 'cache-control': 'no-store' });
+    }
+
     // SenseNova 测试端点
     if (path === '/api/sensenova/test' && req.method === 'POST') {
       if (!vaultKey || !vaultSecrets) {
@@ -817,6 +946,28 @@ const server = http.createServer(async (req, res) => {
         max_tokens: 128,
       }, res, { stream: false, model: body.model, apiKey: internlmKey });
     }
+    if (path === '/api/scnet/test' && req.method === 'POST') {
+      if (!vaultKey || !vaultSecrets) {
+        return json(res, 423, { error: { type: 'vault_locked', message: '请先解锁本机凭据库' } }, { 'cache-control': 'no-store' });
+      }
+      const scnetKey = vaultSecrets.scnet;
+      if (!scnetKey) {
+        return json(res, 404, { error: { type: 'not_configured', message: '尚未配置 SCNet API Key' } }, { 'cache-control': 'no-store' });
+      }
+      const body = await readBody(req);
+      if (typeof body?.model !== 'string' || !body.model.trim()) {
+        return json(res, 400, { error: { type: 'invalid_request', message: 'model is required' } }, { 'cache-control': 'no-store' });
+      }
+      const model = stripSCNetPrefix(body.model.trim());
+      const prompt = typeof body.prompt === 'string' && body.prompt.trim()
+        ? body.prompt.trim().slice(0, 2000)
+        : 'Reply with OK.';
+      return upstreamSCNet('/chat/completions', 'POST', {
+        model,
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 128,
+      }, res, { stream: false, model, apiKey: scnetKey });
+    }
     if (path === '/api/test' && req.method === 'POST') {
       const body = await readBody(req);
       if (typeof body?.model !== 'string' || !body.model.trim()) {
@@ -853,6 +1004,13 @@ const server = http.createServer(async (req, res) => {
         }
         return upstreamInternLM('/chat/completions', 'POST', body, res, { stream: body.stream === true, model: body.model, apiKey: vaultSecrets.internlm });
       }
+      if (isSCNetModel(body.model)) {
+        if (!vaultKey || !vaultSecrets || !vaultSecrets.scnet) {
+          return json(res, 403, { error: { type: 'forbidden', message: 'SCNet 模型需要先在凭据库中配置并解锁 Key' } });
+        }
+        const model = stripSCNetPrefix(body.model);
+        return upstreamSCNet('/chat/completions', 'POST', { ...body, model }, res, { stream: body.stream === true, model, apiKey: vaultSecrets.scnet });
+      }
       return upstream('/chat/completions', 'POST', body, res, { stream: body.stream === true, model: body.model });
     }
     if (path === '/v1/messages' && req.method === 'POST') {
@@ -872,6 +1030,20 @@ const server = http.createServer(async (req, res) => {
         }
         return upstreamInternLM('/v1/messages', 'POST', body, res, { stream: body.stream === true, model: body.model, apiKey: vaultSecrets.internlm });
       }
+      if (isSCNetModel(body.model)) {
+        if (!vaultKey || !vaultSecrets || !vaultSecrets.scnet) {
+          return json(res, 403, { error: { type: 'forbidden', message: 'SCNet 模型需要先在凭据库中配置并解锁 Key' } });
+        }
+        const model = stripSCNetPrefix(body.model);
+        return upstreamSCNet('/v1/messages', 'POST', { ...body, model }, res, {
+          stream: body.stream === true,
+          model,
+          apiKey: vaultSecrets.scnet,
+          anthropic: true,
+          anthropicVersion: req.headers['anthropic-version'] || '2023-06-01',
+          anthropicBeta: req.headers['anthropic-beta'],
+        });
+      }
       return upstream('/v1/messages', 'POST', body, res, { stream: body.stream === true, model: body.model });
     }
     if (path === '/v1/responses' && req.method === 'POST') {
@@ -889,6 +1061,13 @@ const server = http.createServer(async (req, res) => {
           return json(res, 403, { error: { type: 'forbidden', message: 'InternLM 模型需要先在凭据库中配置并解锁 Key' } });
         }
         return upstreamInternLM('/responses', 'POST', body, res, { stream: body?.stream === true, model: body?.model, apiKey: vaultSecrets.internlm });
+      }
+      if (isSCNetModel(body?.model)) {
+        if (!vaultKey || !vaultSecrets || !vaultSecrets.scnet) {
+          return json(res, 403, { error: { type: 'forbidden', message: 'SCNet 模型需要先在凭据库中配置并解锁 Key' } });
+        }
+        const model = stripSCNetPrefix(body.model);
+        return upstreamSCNet('/responses', 'POST', { ...body, model }, res, { stream: body?.stream === true, model, apiKey: vaultSecrets.scnet });
       }
       return upstream('/responses', 'POST', body, res, { stream: body?.stream === true, model: body?.model });
     }

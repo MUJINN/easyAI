@@ -149,10 +149,11 @@
 - 已提供 18 款客户端的接入指引、隐私和免费状态说明，以及 WorkBuddy Skill 下载入口。
 - **SenseNova 接入（首个 BYOK 服务商）**：本机加密凭据库管理 Key；解锁后可加载 SenseNova 模型目录、连通测试，统一兼容端点按模型 ID 前缀 `sensenova/` 自动路由转发到 SenseNova 上游（OpenAI Chat Completions、Anthropic Messages、OpenAI Responses）。不做隐式故障切换，Kilo 与 SenseNova 完全隔离。
 - **InternLM (书生·端砚) 接入（第二个 BYOK 服务商）**：本机加密凭据库管理 Key；解锁后可加载 InternLM 模型目录、连通测试，统一兼容端点按模型 ID 前缀 `internlm/` 自动路由转发到 InternLM 上游（OpenAI Chat Completions、Anthropic Messages、OpenAI Responses）。不做隐式故障切换，Kilo、SenseNova 与 InternLM 完全隔离。
+- **SCNet 接入（第三个 BYOK 服务商）**：本机加密凭据库管理 Key；通过 `GET /api/llm/v1/models` 加载当前 Key 有权限访问的模型，统一兼容端点按 `scnet/` 模型 ID 前缀路由到 SCNet 的 OpenAI 或 Anthropic 兼容 API。
 
 ### 当前验证
 
-- `npm test` 当前通过，覆盖本地控制台与接入文档、口令校验、无口令时拒绝非本机监听，以及手动测试输入校验。
+- `npm test` 当前通过，覆盖本地控制台与接入文档、口令校验、BYOK Key 加密存取、无口令时拒绝非本机监听，以及手动测试输入校验。
 - 这些测试主要是本地服务冒烟测试；未验证真实上游当前可用性，也没有系统覆盖上游状态码/错误正文/`Retry-After` 转发、流式协议兼容、网络失败处理和各客户端真实接入。
 - Windows 启动脚本已具备预期的分支和失败检查，但仍应在干净 Windows 环境按快速开始文档完整走查。
 
@@ -167,11 +168,12 @@
 
 ### 多提供方前端第一版
 
-- 首页提供两个明确入口：无需单独申请上游 Key 的 Kilo 免费模型，以及用户自行申请 Key 的服务商。
+- 首页提供 Kilo 免费模型和 BYOK 服务商入口；服务商凭据统一在本机加密凭据库管理。
 - SenseNova 作为首个接入验证目标；已实现本机加密凭据库，可设置主密码、解锁/锁定、加密保存、替换和删除服务商 Key。Key 使用 `scrypt` 派生密钥和 AES-256-GCM 加密，不提供回显接口。
 - **已完成 SenseNova 接入**：凭据库解锁且配置 Key 后，可加载 SenseNova 模型目录（`/api/sensenova/catalog`）、进行连通测试（`/api/sensenova/test`），以及通过统一兼容端点（`/v1/chat/completions`、`/v1/messages`、`/v1/responses`）自动路由转发请求到 SenseNova。模型 ID 以 `sensenova/` 前缀区分。
 - **已完成 InternLM (书生·端砚) 接入**：凭据库解锁且配置 Key 后，可加载 InternLM 模型目录（`/api/internlm/catalog`）、进行连通测试（`/api/internlm/test`），以及通过统一兼容端点（`/v1/chat/completions`、`/v1/messages`、`/v1/responses`）自动路由转发请求到 InternLM。模型 ID 以 `internlm/` 前缀区分。
-- 初期由用户明确选择服务商和模型；不在上游失败时自动改发给 Kilo 或其他提供方。其他 OpenAI 兼容服务在 SenseNova 和 InternLM 端到端流程验证后再抽象支持。
+- **已完成 SCNet 接入**：凭据库解锁且配置 Key 后，可通过 SCNet 的模型查询接口读取当前 Key 可访问的模型（`/api/scnet/catalog`）、进行连通测试（`/api/scnet/test`），并将模型请求路由到 SCNet OpenAI (`/api/llm/v1`) 或 Anthropic (`/api/llm/anthropic`) 兼容接口。为避免与其他服务商模型 ID 冲突，目录模型以 `scnet/` 前缀标识。
+- 初期由用户明确选择服务商和模型；不在上游失败时自动改发给 Kilo 或其他提供方。各服务商的 API Key、模型权限和使用限制由对应上游控制。
 
 ## 7. 待验证的产品决策
 

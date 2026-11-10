@@ -67,8 +67,10 @@ test('serves local dashboard, enforces auth, and validates manual tests', async 
     assert.match(pageHtml, /id="vault-view"/);
     assert.match(pageHtml, /id="sensenova-view"/);
     assert.match(pageHtml, /id="internlm-view"/);
+    assert.match(pageHtml, /id="scnet-view"/);
     assert.match(pageHtml, /id="vault-open-sensenova"/);
     assert.match(pageHtml, /id="vault-open-internlm"/);
+    assert.match(pageHtml, /id="vault-open-scnet"/);
     assert.doesNotMatch(pageHtml, /id="provider-tabs"|id="panel-sensenova"|id="panel-internlm"/);
     assert.match(pageHtml, /SenseNova（商汤日日新）/);
     assert.match(pageHtml, /id="sensenova-flow"/);
@@ -76,6 +78,10 @@ test('serves local dashboard, enforces auth, and validates manual tests', async 
     assert.match(pageHtml, /API 地址：<code>https:\/\/token\.sensenova\.cn\/v1<\/code>/);
     assert.match(pageHtml, /id="vault-password"/);
     assert.match(pageHtml, /id="sensenova-api-key"/);
+    assert.match(pageHtml, /id="scnet-api-key"/);
+    assert.match(pageHtml, /https:\/\/api\.scnet\.cn\/api\/llm\/v1/);
+    assert.match(pageHtml, /https:\/\/api\.scnet\.cn\/api\/llm\/anthropic/);
+    assert.match(pageHtml, /id="scnet-catalog-section"/);
     assert.match(pageHtml, /主密码不会保存在浏览器或凭据文件中/);
     for (const client of [
       'Claude Code（Anthropic Messages）',
@@ -120,6 +126,8 @@ test('serves local dashboard, enforces auth, and validates manual tests', async 
     assert.match(dashboardScript.headers.get('content-type'), /javascript/);
     const dashboardScriptText = await dashboardScript.text();
     assert.match(dashboardScriptText, /class ModelCatalog/);
+    assert.match(dashboardScriptText, /catalogEndpoint: '\/api\/scnet\/catalog'/);
+    assert.match(dashboardScriptText, /testEndpoint: '\/api\/scnet\/test'/);
     assert.match(dashboardScriptText, /接入客户端/);
     assert.doesNotThrow(() => new vm.Script(dashboardScriptText), 'dashboard JavaScript should be valid');
     const inlineScripts = [...pageHtml.matchAll(/<script\b(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)];
@@ -169,8 +177,19 @@ test('serves local dashboard, enforces auth, and validates manual tests', async 
     const savedStatus = await savedKey.json();
     assert.equal(savedStatus.providers.find((provider) => provider.id === 'sensenova').configured, true);
     assert.equal(JSON.stringify(savedStatus).includes(apiKey), false);
+    const scnetKey = 'scnet-secret-test-key';
+    const saveScnetKey = await fetch(`${baseUrl}/api/vault/providers/scnet`, {
+      method: 'PUT',
+      headers: { ...vaultHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: scnetKey }),
+    });
+    assert.equal(saveScnetKey.status, 200);
+    const savedWithScnet = await saveScnetKey.json();
+    assert.equal(savedWithScnet.providers.find((provider) => provider.id === 'scnet').configured, true);
+    assert.equal(JSON.stringify(savedWithScnet).includes(scnetKey), false);
     const encryptedVault = await fs.readFile(vaultPath, 'utf8');
     assert.equal(encryptedVault.includes(apiKey), false);
+    assert.equal(encryptedVault.includes(scnetKey), false);
     assert.equal(encryptedVault.includes(masterPassword), false);
 
     const lockResponse = await fetch(`${baseUrl}/api/vault/lock`, {
@@ -200,6 +219,20 @@ test('serves local dashboard, enforces auth, and validates manual tests', async 
     });
     assert.equal(deleteKey.status, 200);
     assert.equal((await deleteKey.json()).providers.find((provider) => provider.id === 'sensenova').configured, false);
+    const deleteScnetKey = await fetch(`${baseUrl}/api/vault/providers/scnet`, {
+      method: 'DELETE',
+      headers: vaultHeaders,
+    });
+    assert.equal(deleteScnetKey.status, 200);
+    assert.equal((await deleteScnetKey.json()).providers.find((provider) => provider.id === 'scnet').configured, false);
+    const missingScnetKey = await fetch(`${baseUrl}/api/scnet/catalog`, { headers: vaultHeaders });
+    assert.equal(missingScnetKey.status, 404);
+    const blockedScnetRoute = await fetch(`${baseUrl}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { ...vaultHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'scnet/example-model', messages: [] }),
+    });
+    assert.equal(blockedScnetRoute.status, 403);
 
     const guide = await fetch(`${baseUrl}/docs/client-guides/third-party-api-setup.html`);
     assert.equal(guide.status, 200);

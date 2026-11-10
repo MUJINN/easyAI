@@ -35,7 +35,7 @@ node server.js
 
 ## 本机服务商 Key 凭据库
 
-在「接入自己的模型服务」页面首次设置凭据库主密码，然后解锁并保存服务商 Key。首版支持 SenseNova 和 InternLM (书生·端砚) Key 的加密保存、替换和删除。**已完成 SenseNova、InternLM 模型目录读取、连通测试及请求转发（OpenAI Chat Completions / Anthropic Messages / OpenAI Responses）**。
+在「接入自己的模型服务」页面首次设置凭据库主密码，然后解锁并保存服务商 Key。支持 SenseNova、InternLM (书生·端砚) 和超算互联网（SCNet）Key 的加密保存、替换和删除。模型目录、连通测试及请求转发按服务商分别进行；SCNet 支持 OpenAI 与 Anthropic 兼容 API。
 
 - 主密码至少 12 个字符，不会保存到浏览器或凭据文件；网关重启后需要重新解锁。
 - 服务商 Key 使用 Node.js `scrypt` 派生密钥和 AES-256-GCM 加密后保存在本机用户数据目录。Windows 默认位置为 `%LOCALAPPDATA%\easyAI\kilo-free-gateway\vault.json`；macOS/Linux 使用各自用户数据目录。
@@ -59,6 +59,14 @@ node server.js
 4. 点击「加载 InternLM 模型目录」查看可用模型
 5. 选中模型点击「连通测试」或使用「问答测试」验证连接
 6. 点击「接入客户端」复制配置到 Claude Code、Cline 等工具
+
+**SCNet 接入流程**：
+1. 在 [SCNet 模型 API Key 管理](https://www.scnet.cn/ui/console/index.html#/llm/apikeys)创建模型 API Key，并配置可访问的模型范围
+2. 控制台选择「接入 SCNet」→「管理本机凭据」，解锁凭据库并加密保存 Key
+3. 返回 SCNet 页面加载模型目录；列表按该 Key 的权限返回，展示的模型 ID 带有 `scnet/` 本地路由前缀
+4. 选中模型进行连通测试，或通过「接入客户端」配置本地网关
+
+SCNet 上游地址为 `https://api.scnet.cn/api/llm/v1`（OpenAI 兼容）和 `https://api.scnet.cn/api/llm/anthropic`（Anthropic 兼容）。Token Plan Key 有独立的使用范围限制，请遵守 SCNet 官方规则。
 
 控制台刷新模型目录不会调用模型。只有点击测试按钮才会发出测试消息。
 
@@ -86,9 +94,9 @@ start.cmd cline
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | GET | `/v1/models` | 列出上游全部模型（含 `isFree` 标记） |
-| POST | `/v1/chat/completions` | OpenAI Chat Completions，支持 `stream: true`（自动路由 Kilo/SenseNova/InternLM） |
-| POST | `/v1/messages` | Anthropic Messages，支持 `stream: true`、`thinking`、`tool_use`（自动路由 Kilo/SenseNova/InternLM） |
-| POST | `/v1/responses` | OpenAI Responses（部分模型，自动路由 Kilo/SenseNova/InternLM） |
+| POST | `/v1/chat/completions` | OpenAI Chat Completions，支持 `stream: true`（自动路由 Kilo/SenseNova/InternLM/SCNet） |
+| POST | `/v1/messages` | Anthropic Messages，支持 `stream: true`、`thinking`、`tool_use`（自动路由 Kilo/SenseNova/InternLM/SCNet） |
+| POST | `/v1/responses` | OpenAI Responses（部分模型，自动路由 Kilo/SenseNova/InternLM/SCNet） |
 | GET | `/healthz` | 本机服务健康检查（不检查上游） |
 | GET | `/` | 本地模型控制台 |
 | GET | `/docs/client-guides/third-party-api-setup.html` | 打开第三方模型 API 接入图文教程 |
@@ -98,10 +106,13 @@ start.cmd cline
 | POST | `/api/sensenova/test` | SenseNova 模型连通测试（需凭据库解锁且配置 Key） |
 | GET | `/api/internlm/catalog` | InternLM 模型目录（需凭据库解锁且配置 Key） |
 | POST | `/api/internlm/test` | InternLM 模型连通测试（需凭据库解锁且配置 Key） |
+| GET | `/api/scnet/catalog` | SCNet 当前 Key 可访问的模型目录（需凭据库解锁且配置 Key） |
+| POST | `/api/scnet/test` | SCNet 模型连通测试（需凭据库解锁且配置 Key） |
 | GET | `/api/vault/status` | 本机凭据库锁定状态和服务商 Key 配置状态 |
 | POST | `/api/vault/setup`、`/api/vault/unlock`、`/api/vault/lock` | 创建、解锁或锁定本机凭据库 |
 | PUT、DELETE | `/api/vault/providers/sensenova` | 保存/替换或删除 SenseNova Key（Key 不会从接口回传） |
 | PUT、DELETE | `/api/vault/providers/internlm` | 保存/替换或删除 InternLM Key（Key 不会从接口回传） |
+| PUT、DELETE | `/api/vault/providers/scnet` | 保存/替换或删除 SCNet Key（Key 不会从接口回传） |
 | GET | `/api/workbuddy-skill` | 获取 WorkBuddy 配置 Skill 文本 |
 | GET | `/api/workbuddy-skill.zip` | 下载 WorkBuddy 配置 Skill 压缩包 |
 

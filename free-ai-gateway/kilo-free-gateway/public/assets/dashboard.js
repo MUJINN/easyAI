@@ -199,11 +199,27 @@
       renderExtraMeta: (card,m) => { /* InternLM 无额外元数据 */ }
     });
 
+    const scnetCatalog = new ModelCatalog({
+      sels: {
+        catalog: '#scnet-catalog', search: '#scnet-search', freeOnly: null,
+        status: '#scnet-catalog-status', loadBtn: '#load-scnet-catalog',
+        testPrompt: '#scnet-test-prompt', testBtn: '#scnet-test-button', testResult: '#scnet-test-result',
+        topTestBtn: '#scnet-top-test-button', topStopBtn: '#scnet-top-stop-button', clearSelBtn: '#scnet-clear-selection',
+        selectVisibleBtn: '#scnet-select-visible-button', selectedOnlyBtn: '#scnet-selected-only-button',
+        selectionStatus: '#scnet-selection-status',
+      },
+      catalogEndpoint: '/api/scnet/catalog', testEndpoint: '/api/scnet/test', providerName: 'SCNet',
+      extraFilter: () => true,
+      renderExtraBadges: () => [],
+      renderExtraMeta: (card,m) => { /* SCNet 无额外元数据 */ }
+    });
+
     // Get active catalog from the currently displayed page.
     function getActiveCatalog() {
       if (!$('#kilo-view').hidden) return kiloCatalog;
       if (!$('#sensenova-view').hidden) return sensenovaCatalog;
       if (!$('#internlm-view').hidden) return internlmCatalog;
+      if (!$('#scnet-view').hidden) return scnetCatalog;
       return null;
     }
 
@@ -311,6 +327,12 @@
         : '尚未配置 Key';
       $('#delete-internlm-key').disabled = !internlm?.configured;
 
+      const scnet = vault?.providers?.find((provider) => provider.id === 'scnet');
+      $('#scnet-provider-state').textContent = scnet?.configured
+        ? 'Key 已加密保存'
+        : '尚未配置 Key';
+      $('#delete-scnet-key').disabled = !scnet?.configured;
+
       if (!unlocked) {
         $('#vault-lock-state').textContent = initialized
           ? '凭据库已锁定；解锁后才能使用或管理 Key。'
@@ -336,6 +358,7 @@
         state.vault = null;
         $('#sensenova-provider-state').textContent = '凭据状态不可用';
         $('#internlm-provider-state').textContent = '凭据状态不可用';
+        $('#scnet-provider-state').textContent = '凭据状态不可用';
         $('#vault-lock-state').textContent = error.status === 401
           ? '本地网关要求访问口令。请返回首页进入 Kilo 模型，在“连接设置”中填写并保存口令，再返回此处。'
           : error.name === 'AbortError'
@@ -357,6 +380,7 @@
         vault: $('#vault-view'),
         sensenova: $('#sensenova-view'),
         internlm: $('#internlm-view'),
+        scnet: $('#scnet-view'),
       };
       for (const [viewName, element] of Object.entries(views)) {
         element.hidden = viewName !== name;
@@ -365,7 +389,7 @@
       $('#catalog-status').hidden = name !== 'kilo';
       window.scrollTo({ top: 0, behavior: 'auto' });
       if (name === 'kilo' && !kiloCatalog.loaded) kiloCatalog.load();
-      if (['vault', 'sensenova', 'internlm'].includes(name)) loadVaultStatus();
+      if (['vault', 'sensenova', 'internlm', 'scnet'].includes(name)) loadVaultStatus();
       const activeCatalog = getActiveCatalog();
       if (activeCatalog) {
         activeCatalog.render();
@@ -496,6 +520,7 @@
       $('#vault-key-status').textContent = '正在锁定凭据库…';
       $('#sensenova-api-key').value = '';
       $('#internlm-api-key').value = '';
+      $('#scnet-api-key').value = '';
       try {
         state.vault = await vaultRequest('/api/vault/lock', { method: 'POST' });
         renderVaultStatus();
@@ -546,6 +571,48 @@
         renderVaultStatus();
         markVaultStatusDirty();
         status.textContent = '已删除本机保存的 InternLM Key。';
+      } catch (error) {
+        status.textContent = error.message || '删除失败，请重试。';
+      }
+    });
+
+    $('#save-scnet-key').addEventListener('click', async () => {
+      const input = $('#scnet-api-key');
+      const key = input.value.trim();
+      const status = $('#vault-key-status');
+      const button = $('#save-scnet-key');
+      if (!key) {
+        status.textContent = '请输入 SCNet 模型 API Key。';
+        return;
+      }
+      button.disabled = true;
+      status.textContent = '正在加密并保存…';
+      try {
+        state.vault = await vaultRequest('/api/vault/providers/scnet', {
+          method: 'PUT',
+          body: { key },
+        });
+        renderVaultStatus();
+        markVaultStatusDirty();
+        status.textContent = 'SCNet Key 已加密保存在本机；页面不会回显或持久化它。';
+      } catch (error) {
+        status.textContent = error.message || '保存失败，请重试。';
+      } finally {
+        input.value = '';
+        button.disabled = false;
+      }
+    });
+    $('#delete-scnet-key').addEventListener('click', async () => {
+      if (!window.confirm('确定删除本机保存的 SCNet Key 吗？')) return;
+      const status = $('#vault-key-status');
+      const button = $('#delete-scnet-key');
+      button.disabled = true;
+      status.textContent = '正在删除…';
+      try {
+        state.vault = await vaultRequest('/api/vault/providers/scnet', { method: 'DELETE' });
+        renderVaultStatus();
+        markVaultStatusDirty();
+        status.textContent = '已删除本机保存的 SCNet Key。';
       } catch (error) {
         status.textContent = error.message || '删除失败，请重试。';
       }
@@ -1093,14 +1160,10 @@
       $('#setup-model-label').textContent = `当前模型：${model.id}`;
       $('#setup-model-id').value = model.id;
       // 预填 Base URL 和 API Key 根据上游来源
-      if (provider === 'sensenova') {
-        $('#setup-base-url').value = `${window.location.origin.replace(/\/+$/, '')}/v1`;
-        $('#setup-api-key').value = state.vault?.unlocked && state.vault?.providers?.find(p => p.id === 'sensenova' && p.configured) ? '【已在凭据库配置】' : '请输入 SenseNova API Key';
-        $('#setup-api-key').readOnly = true;
-      } else if (provider === 'internlm') {
-        $('#setup-base-url').value = `${window.location.origin.replace(/\/+$/, '')}/v1`;
-        $('#setup-api-key').value = state.vault?.unlocked && state.vault?.providers?.find(p => p.id === 'internlm' && p.configured) ? '【已在凭据库配置】' : '请输入 InternLM API Key';
-        $('#setup-api-key').readOnly = true;
+      if (['sensenova', 'internlm', 'scnet'].includes(provider)) {
+        $('#setup-base-url').value = setupBaseUrl('claude-code');
+        $('#setup-api-key').value = state.key || 'dummy';
+        $('#setup-api-key').readOnly = false;
       } else {
         // Kilo / 其他
         $('#setup-base-url').value = setupBaseUrl('claude-code');
@@ -1194,11 +1257,14 @@
     async function checkAndShowProviderSections() {
       const sensenovaConfigured = state.vault?.unlocked && state.vault?.providers?.find(p => p.id === 'sensenova' && p.configured);
       const internlmConfigured = state.vault?.unlocked && state.vault?.providers?.find(p => p.id === 'internlm' && p.configured);
+      const scnetConfigured = state.vault?.unlocked && state.vault?.providers?.find(p => p.id === 'scnet' && p.configured);
 
       $('#sensenova-catalog-section').hidden = !sensenovaConfigured;
       $('#internlm-catalog-section').hidden = !internlmConfigured;
+      $('#scnet-catalog-section').hidden = !scnetConfigured;
       $('#sensenova-flow').hidden = !!sensenovaConfigured;
       $('#internlm-flow').hidden = !!internlmConfigured;
+      $('#scnet-flow').hidden = !!scnetConfigured;
     }
 
     // 在 renderVaultStatus 中调用 checkAndShowProviderSections
@@ -1210,8 +1276,10 @@
 
     $('#open-sensenova').addEventListener('click', () => showView('sensenova'));
     $('#open-internlm').addEventListener('click', () => showView('internlm'));
+    $('#open-scnet').addEventListener('click', () => showView('scnet'));
     $('#vault-open-sensenova').addEventListener('click', () => showView('sensenova'));
     $('#vault-open-internlm').addEventListener('click', () => showView('internlm'));
+    $('#vault-open-scnet').addEventListener('click', () => showView('scnet'));
     document.querySelectorAll('[data-open-vault]').forEach((button) => {
       button.addEventListener('click', () => showView('vault'));
     });
