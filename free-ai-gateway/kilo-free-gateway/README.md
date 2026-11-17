@@ -35,7 +35,7 @@ node server.js
 
 ## 本机服务商 Key 凭据库
 
-在「接入自己的模型服务」页面首次设置凭据库主密码，然后解锁并保存服务商 Key。支持 SenseNova、InternLM (书生·端砚) 和超算互联网（SCNet）Key 的加密保存、替换和删除。模型目录、连通测试及请求转发按服务商分别进行；SCNet 支持 OpenAI 与 Anthropic 兼容 API。
+在「接入自己的模型服务」页面首次设置凭据库主密码，然后解锁并保存服务商 Key。内置支持 SenseNova、InternLM (书生·端砚) 和超算互联网（SCNet），也可在页面手动添加自定义 OpenAI 兼容服务商。自定义服务商的名称、Base URL 和 Key 加密保存在本机，可读取模型目录、连通测试并转发请求。
 
 - 主密码至少 12 个字符，不会保存到浏览器或凭据文件；网关重启后需要重新解锁。
 - 服务商 Key 使用 Node.js `scrypt` 派生密钥和 AES-256-GCM 加密后保存在本机用户数据目录。Windows 默认位置为 `%LOCALAPPDATA%\easyAI\kilo-free-gateway\vault.json`；macOS/Linux 使用各自用户数据目录。
@@ -64,9 +64,20 @@ node server.js
 1. 在 [SCNet 模型 API Key 管理](https://www.scnet.cn/ui/console/index.html#/llm/apikeys)创建模型 API Key，并配置可访问的模型范围
 2. 控制台选择「接入 SCNet」→「管理本机凭据」，解锁凭据库并加密保存 Key
 3. 返回 SCNet 页面加载模型目录；列表按该 Key 的权限返回，展示的模型 ID 带有 `scnet/` 本地路由前缀
-4. 选中模型进行连通测试，或通过「接入客户端」配置本地网关
+4. 选中模型进行连通测试；接入第三方客户端时，模型 ID 请照抄网关目录显示的完整值（例如 `scnet/deepseek-v4-pro-0813`），不要去掉 `scnet/` 前缀
+5. 通过「接入客户端」配置本地网关：API Key 使用本机访问口令（未设置时填 `dummy`），不要在客户端填 SCNet 真实 Key
 
 SCNet 上游地址为 `https://api.scnet.cn/api/llm/v1`（OpenAI 兼容）和 `https://api.scnet.cn/api/llm/anthropic`（Anthropic 兼容）。Token Plan Key 有独立的使用范围限制，请遵守 SCNet 官方规则。
+
+**添加自定义服务商**：
+1. 在控制台首页选择「自定义模型服务商」，解锁本机凭据库
+2. 填写名称、Base URL（例如 `https://api.example.com/v1`）和服务商 API Key，然后加密保存
+3. 打开服务商的模型目录，选择模型进行连通测试；客户端使用目录显示的完整模型 ID（带有 `custom-.../` 前缀）
+4. 客户端连接本地网关时填写本机访问口令（未设置时填 `dummy`），不要填写上游 API Key
+
+自定义服务商要求提供 OpenAI 兼容的 `GET /models` 和 `POST /chat/completions` 接口，仅支持 OpenAI Chat Completions 路由；不会自动适配 Anthropic Messages 或 Responses API。Base URL 支持 HTTP/HTTPS，应只填写你信任且明确希望连接的服务地址。
+
+客户端调用 `GET /v1/models` 时，网关会返回 Kilo 模型，并在本机凭据库已解锁时合并已配置 Key 的 SCNet、SenseNova、InternLM 和自定义服务商模型。第三方模型 ID 会带服务商路由前缀；请在客户端照抄完整 ID。某个服务商目录暂时不可用时，其余目录仍会返回，响应中的 `gateway_warnings` 会列出查询失败的服务商。
 
 控制台刷新模型目录不会调用模型。只有点击测试按钮才会发出测试消息。
 
@@ -94,7 +105,7 @@ start.cmd cline
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | GET | `/v1/models` | 列出上游全部模型（含 `isFree` 标记） |
-| POST | `/v1/chat/completions` | OpenAI Chat Completions，支持 `stream: true`（自动路由 Kilo/SenseNova/InternLM/SCNet） |
+| POST | `/v1/chat/completions` | OpenAI Chat Completions，支持 `stream: true`（自动路由 Kilo/SenseNova/InternLM/SCNet/自定义服务商） |
 | POST | `/v1/messages` | Anthropic Messages，支持 `stream: true`、`thinking`、`tool_use`（自动路由 Kilo/SenseNova/InternLM/SCNet） |
 | POST | `/v1/responses` | OpenAI Responses（部分模型，自动路由 Kilo/SenseNova/InternLM/SCNet） |
 | GET | `/healthz` | 本机服务健康检查（不检查上游） |
@@ -108,6 +119,10 @@ start.cmd cline
 | POST | `/api/internlm/test` | InternLM 模型连通测试（需凭据库解锁且配置 Key） |
 | GET | `/api/scnet/catalog` | SCNet 当前 Key 可访问的模型目录（需凭据库解锁且配置 Key） |
 | POST | `/api/scnet/test` | SCNet 模型连通测试（需凭据库解锁且配置 Key） |
+| POST | `/api/vault/custom-providers` | 加密保存新的自定义服务商名称、Base URL 和 API Key |
+| PUT、DELETE | `/api/vault/custom-providers/{id}` | 更新或删除自定义服务商及凭据 |
+| GET | `/api/custom-providers/{id}/catalog` | 加载自定义服务商模型目录 |
+| POST | `/api/custom-providers/{id}/test` | 测试自定义服务商模型连接 |
 | GET | `/api/vault/status` | 本机凭据库锁定状态和服务商 Key 配置状态 |
 | POST | `/api/vault/setup`、`/api/vault/unlock`、`/api/vault/lock` | 创建、解锁或锁定本机凭据库 |
 | PUT、DELETE | `/api/vault/providers/sensenova` | 保存/替换或删除 SenseNova Key（Key 不会从接口回传） |

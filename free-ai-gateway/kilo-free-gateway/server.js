@@ -52,6 +52,7 @@ const VAULT_PROVIDERS = {
   internlm: '书生·端砚（InternLM）',
   scnet: '超算互联网（SCNet）',
 };
+const CUSTOM_PROVIDER_ID_PATTERN = /^custom-[a-f0-9-]{36}$/;
 const VAULT_PASSWORD_MIN_LENGTH = 12;
 
 // SenseNova 配置（支持通过环境变量覆盖，用于测试）
@@ -205,14 +206,30 @@ async function saveVault(secrets, key, salt) {
 
 async function getVaultStatus() {
   const envelope = await readVaultEnvelope();
+  const providerIds = new Set(envelope?.providers || []);
+  const customProviders = [...providerIds]
+    .filter((id) => CUSTOM_PROVIDER_ID_PATTERN.test(id))
+    .map((id) => {
+      const saved = vaultSecrets?.[id];
+      return {
+        id,
+        name: saved?.name || id,
+        baseUrl: saved?.baseUrl || '',
+        configured: providerIds.has(id),
+        custom: true,
+      };
+    });
   return {
     initialized: Boolean(envelope),
     unlocked: Boolean(vaultKey && vaultSecrets),
-    providers: Object.entries(VAULT_PROVIDERS).map(([id, name]) => ({
-      id,
-      name,
-      configured: Boolean(envelope?.providers.includes(id)),
-    })),
+    providers: [
+      ...Object.entries(VAULT_PROVIDERS).map(([id, name]) => ({
+        id,
+        name,
+        configured: providerIds.has(id),
+      })),
+      ...customProviders,
+    ],
   };
 }
 
@@ -220,6 +237,114 @@ function validateVaultPassword(password) {
   if (typeof password !== 'string' || password.length < VAULT_PASSWORD_MIN_LENGTH) {
     throw new VaultError(400, `主密码至少需要 ${VAULT_PASSWORD_MIN_LENGTH} 个字符`);
   }
+}
+
+function validateCustomProvider(body, current) {
+  const name = typeof body?.name === 'string' ? body.name.trim() : '';
+  if (!name || name.length > 80) {
+    throw new VaultError(400, '服务商名称不能为空且不能超过 80 个字符');
+  }
+  const baseUrlValue = typeof body?.baseUrl === 'string' ? body.baseUrl.trim() : '';
+  if (!baseUrlValue || baseUrlValue.length > 2048) {
+    throw new VaultError(400, '请输入有效的 Base URL（最多 2048 个字符）');
+  }
+  let baseUrl;
+  try {
+    const parsed = new URL(baseUrlValue);
+    if (
+      !['http:', 'https:'].includes(parsed.protocol)
+      || !parsed.hostname
+      || parsed.username
+      || parsed.password
+      || parsed.search
+      || parsed.hash
+    ) {
+      throw new Error('invalid URL');
+    }
+    parsed.pathname = parsed.pathname.replace(/\/+$/, '');
+    baseUrl = parsed.toString().replace(/\/+$/, '');
+  } catch {
+    throw new VaultError(400, 'Base URL 必须是有效的 HTTP 或 HTTPS 地址，且不能包含账号、查询参数或片段');
+  }
+  const key = typeof body?.key === 'string' ? body.key.trim() : '';
+  if (key.length > 4096 || (!key && !current?.key)) {
+    throw new VaultError(400, '请输入有效的 API Key（最多 4096 个字符）');
+  }
+  return { name, baseUrl, key: key || current.key };
+}
+
+function getCustomProvider(id) {
+  if (!CUSTOM_PROVIDER_ID_PATTERN.test(id || '')) return null;
+  const provider = vaultSecrets?.[id];
+  return provider && typeof provider === 'object' && typeof provider.key === 'string'
+    ? { ...provider, id }
+    : null;
+}
+
+function isCustomProviderModel(modelId) {
+  return typeof modelId === 'string' && /^custom-[a-f0-9-]{36}\//i.test(modelId);
+}
+
+function customProviderModel(modelId, provider) {
+  return modelId.slice(`${provider.id}/`.length);
+}
+
+function requestCustomProvider(provider, pathname, method = 'GET', body = undefined, { stream = false } = {}) {
+  return new Promise((resolve, reject) => {
+    const payload = body === undefined ? null : JSON.stringify(body);
+    const target = new URL(pathname.replace(/^\/+/, ''), `${provider.baseUrl}/`);
+    const transport = target.protocol === 'https:' ? https : http;
+    const headers = {
+      ...UPSTREAM_HEADERS,
+      authorization: `Bearer ${provider.key}`,
+    };
+    if (payload) headers['content-length'] = Buffer.byteLength(payload);
+    if (stream) headers.accept = 'text/event-stream';
+    const req = transport.request(target, { method, headers }, (up) => {
+      const chunks = [];
+      up.on('data', (chunk) => chunks.push(chunk));
+      up.on('end', () => resolve({
+        statusCode: up.statusCode || 502,
+        headers: up.headers,
+        body: Buffer.concat(chunks).toString('utf8'),
+      }));
+    });
+    req.setTimeout(30000, () => req.destroy(new Error('custom provider request timed out')));
+    req.on('error', reject);
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
+function upstreamCustomProvider(provider, pathname, body, res, { stream, model }) {
+  const payload = body === undefined ? null : JSON.stringify(body);
+  const target = new URL(pathname.replace(/^\/+/, ''), `${provider.baseUrl}/`);
+  const transport = target.protocol === 'https:' ? https : http;
+  const headers = {
+    ...UPSTREAM_HEADERS,
+    authorization: `Bearer ${provider.key}`,
+  };
+  if (payload) headers['content-length'] = Buffer.byteLength(payload);
+  if (stream) headers.accept = 'text/event-stream';
+  const startedAt = Date.now();
+  const req = transport.request(target, { method: 'POST', headers }, (up) => {
+    res.writeHead(up.statusCode || 502, forwardedHeaders(up, stream));
+    up.pipe(res);
+    up.on('end', () => {
+      const retryAfter = up.headers['retry-after'];
+      log(`<- ${provider.name} POST ${pathname} model=${model || '-'} ${Date.now() - startedAt}ms${retryAfter ? ` retry-after=${retryAfter}` : ''}`);
+    });
+  });
+  req.setTimeout(30000, () => req.destroy(new Error('custom provider request timed out')));
+  req.on('error', (error) => {
+    log(`!! ${provider.name} upstream error POST ${pathname} model=${model || '-'}: ${error.message}`);
+    if (!res.headersSent) {
+      res.writeHead(502, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: { type: 'upstream_error', message: error.message } }));
+    } else res.end();
+  });
+  if (payload) req.write(payload);
+  req.end();
 }
 
 function requestUpstream(pathname) {
@@ -301,10 +426,6 @@ function requestSCNet(pathname, method = 'GET', body = undefined, apiKey = undef
     const payload = body === undefined ? null : JSON.stringify(body);
     const headers = { ...SCNET_UPSTREAM_HEADERS };
     if (apiKey) headers.authorization = `Bearer ${apiKey}`;
-    if (anthropic) {
-      headers['anthropic-version'] = anthropicVersion;
-      if (anthropicBeta) headers['anthropic-beta'] = anthropicBeta;
-    }
     if (payload) headers['content-length'] = Buffer.byteLength(payload);
     if (method !== 'GET') headers.accept = 'text/event-stream';
 
@@ -325,6 +446,38 @@ function requestSCNet(pathname, method = 'GET', body = undefined, apiKey = undef
     if (payload) req.write(payload);
     req.end();
   });
+}
+
+async function requestProviderModels(provider, apiKey) {
+  const requests = {
+    sensenova: () => requestSenseNova('/models', 'GET', undefined, apiKey),
+    internlm: () => requestInternLM('/models', 'GET', undefined, apiKey),
+    scnet: () => requestSCNet('/models', 'GET', undefined, apiKey),
+  };
+  const providerId = typeof provider === 'string' ? provider : provider.id;
+  const up = typeof provider === 'string'
+    ? await requests[provider]()
+    : await requestCustomProvider(provider, '/models');
+  if (up.statusCode < 200 || up.statusCode >= 300) {
+    throw new Error(`HTTP ${up.statusCode} while loading ${providerId} models`);
+  }
+  let catalog;
+  try {
+    catalog = JSON.parse(up.body);
+  } catch {
+    throw new Error(`${providerId} returned invalid JSON for its model catalog`);
+  }
+  if (!Array.isArray(catalog.data)) {
+    throw new Error(`${providerId} returned an invalid model catalog`);
+  }
+  return catalog.data
+    .filter((model) => typeof model?.id === 'string' && model.id.trim())
+    .map((model) => ({
+      ...model,
+      id: prefixModelProvider(model.id, providerId),
+      provider: providerId,
+      upstream: providerId,
+    }));
 }
 
 function forwardedHeaders(up, stream) {
@@ -446,6 +599,10 @@ function upstreamSCNet(pathname, method, body, res, {
   const payload = body === undefined ? null : JSON.stringify(body);
   const headers = { ...SCNET_UPSTREAM_HEADERS };
   if (apiKey) headers.authorization = `Bearer ${apiKey}`;
+  if (anthropic) {
+    headers['anthropic-version'] = anthropicVersion;
+    if (anthropicBeta) headers['anthropic-beta'] = anthropicBeta;
+  }
   if (payload) headers['content-length'] = Buffer.byteLength(payload);
   if (stream) headers.accept = 'text/event-stream';
   const base = anthropic ? SCNET_ANTHROPIC_BASE : SCNET_OPENAI_BASE;
@@ -565,7 +722,24 @@ function isSCNetModel(modelId) {
 }
 
 function stripSCNetPrefix(modelId) {
-  return isSCNetModel(modelId) ? modelId.slice('scnet/'.length) : modelId;
+  return stripModelProviderPrefix(modelId, 'scnet');
+}
+
+function stripModelProviderPrefix(modelId, provider) {
+  const prefix = `${provider}/`;
+  return typeof modelId === 'string' && modelId.toLowerCase().startsWith(prefix)
+    ? modelId.slice(prefix.length)
+    : modelId;
+}
+
+function prefixModelProvider(model, provider) {
+  const prefix = `${provider}/`;
+  return model.toLowerCase().startsWith(prefix) ? model : `${prefix}${model}`;
+}
+
+function stripSenseNovaPrefix(modelId) {
+  return stripModelProviderPrefix(modelId, 'sensenova')
+    .replace(/^sense-nova\//i, '');
 }
 
 /** 本地口令校验（仅在设置了 LOCAL_KEY 时生效）。 */
@@ -694,6 +868,43 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, await getVaultStatus(), { 'cache-control': 'no-store' });
       }
 
+      if (path === '/api/vault/custom-providers' && req.method === 'POST') {
+        if (!vaultKey || !vaultSecrets) {
+          throw new VaultError(423, '请先解锁本机凭据库');
+        }
+        const body = await readBody(req);
+        const config = validateCustomProvider(body, null);
+        const id = `custom-${crypto.randomUUID()}`;
+        const updatedSecrets = { ...vaultSecrets, [id]: config };
+        const envelope = await readVaultEnvelope();
+        if (!envelope) throw new VaultError(404, '凭据库尚未初始化');
+        await saveVault(updatedSecrets, vaultKey, Buffer.from(envelope.salt, 'base64'));
+        vaultSecrets = updatedSecrets;
+        return json(res, 201, await getVaultStatus(), { 'cache-control': 'no-store' });
+      }
+
+      const customProviderMatch = path.match(/^\/api\/vault\/custom-providers\/(custom-[a-f0-9-]{36})$/);
+      if (customProviderMatch && ['PUT', 'DELETE'].includes(req.method)) {
+        if (!vaultKey || !vaultSecrets) {
+          throw new VaultError(423, '请先解锁本机凭据库');
+        }
+        const providerId = customProviderMatch[1];
+        const current = getCustomProvider(providerId);
+        if (!current) throw new VaultError(404, '自定义服务商不存在');
+        const envelope = await readVaultEnvelope();
+        if (!envelope) throw new VaultError(404, '凭据库尚未初始化');
+        const updatedSecrets = { ...vaultSecrets };
+        if (req.method === 'PUT') {
+          const config = validateCustomProvider(await readBody(req), current);
+          updatedSecrets[providerId] = config;
+        } else {
+          delete updatedSecrets[providerId];
+        }
+        await saveVault(updatedSecrets, vaultKey, Buffer.from(envelope.salt, 'base64'));
+        vaultSecrets = updatedSecrets;
+        return json(res, 200, await getVaultStatus(), { 'cache-control': 'no-store' });
+      }
+
       const providerMatch = path.match(/^\/api\/vault\/providers\/([a-z0-9-]+)$/);
       if (providerMatch && ['PUT', 'DELETE'].includes(req.method)) {
         const providerId = providerMatch[1];
@@ -773,6 +984,59 @@ const server = http.createServer(async (req, res) => {
         provider: 'kilo',
       }));
       return json(res, 200, { data: models, checked_at: new Date().toISOString() });
+    }
+
+    const customCatalogMatch = path.match(/^\/api\/custom-providers\/(custom-[a-f0-9-]{36})\/catalog$/);
+    if (customCatalogMatch && req.method === 'GET') {
+      if (!vaultKey || !vaultSecrets) {
+        return json(res, 423, { error: { type: 'vault_locked', message: '请先解锁本机凭据库' } }, { 'cache-control': 'no-store' });
+      }
+      const provider = getCustomProvider(customCatalogMatch[1]);
+      if (!provider) {
+        return json(res, 404, { error: { type: 'not_configured', message: '自定义服务商不存在' } }, { 'cache-control': 'no-store' });
+      }
+      let models;
+      try {
+        models = await requestProviderModels(provider);
+      } catch (error) {
+        log(`!! ${provider.name} error GET /models: ${error.message}`);
+        return json(res, 502, { error: { type: 'upstream_error', message: error.message } }, { 'cache-control': 'no-store' });
+      }
+      return json(res, 200, { data: models, checked_at: new Date().toISOString() }, { 'cache-control': 'no-store' });
+    }
+
+    const customTestMatch = path.match(/^\/api\/custom-providers\/(custom-[a-f0-9-]{36})\/test$/);
+    if (customTestMatch && req.method === 'POST') {
+      if (!vaultKey || !vaultSecrets) {
+        return json(res, 423, { error: { type: 'vault_locked', message: '请先解锁本机凭据库' } }, { 'cache-control': 'no-store' });
+      }
+      const provider = getCustomProvider(customTestMatch[1]);
+      if (!provider) {
+        return json(res, 404, { error: { type: 'not_configured', message: '自定义服务商不存在' } }, { 'cache-control': 'no-store' });
+      }
+      const body = await readBody(req);
+      if (typeof body?.model !== 'string' || !body.model.trim()) {
+        return json(res, 400, { error: { type: 'invalid_request', message: 'model is required' } }, { 'cache-control': 'no-store' });
+      }
+      const model = body.model.startsWith(`${provider.id}/`)
+        ? customProviderModel(body.model, provider)
+        : body.model.trim();
+      const prompt = typeof body.prompt === 'string' && body.prompt.trim()
+        ? body.prompt.trim().slice(0, 2000)
+        : 'Reply with OK.';
+      let up;
+      try {
+        up = await requestCustomProvider(provider, '/chat/completions', 'POST', {
+          model,
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens: 128,
+        });
+      } catch (error) {
+        log(`!! ${provider.name} error POST /chat/completions: ${error.message}`);
+        return json(res, 502, { error: { type: 'upstream_error', message: error.message } }, { 'cache-control': 'no-store' });
+      }
+      res.writeHead(up.statusCode, forwardedHeaders(up, false));
+      return res.end(up.body);
     }
 
     // SenseNova 目录端点：仅在凭据库解锁且配置了 Key 时可用
@@ -983,18 +1247,89 @@ const server = http.createServer(async (req, res) => {
       }, res, { stream: false, model: body.model });
     }
     if (path === '/v1/models' && req.method === 'GET') {
-      return upstream('/models', 'GET', undefined, res, { stream: false });
+      let up;
+      try {
+        up = await requestUpstream('/models');
+      } catch (error) {
+        log(`!! upstream error GET /models: ${error.message}`);
+        return json(res, 502, { error: { type: 'upstream_error', message: error.message } });
+      }
+      if (up.statusCode < 200 || up.statusCode >= 300) {
+        return json(res, up.statusCode, {
+          error: { type: 'upstream_error', message: 'Could not load the upstream model catalog', details: up.body },
+          retry_after: up.headers['retry-after'] || null,
+        }, up.headers['retry-after'] ? { 'retry-after': up.headers['retry-after'] } : {});
+      }
+      let catalog;
+      try {
+        catalog = JSON.parse(up.body);
+      } catch {
+        return json(res, 502, { error: { type: 'upstream_error', message: 'Upstream model catalog has invalid JSON' } });
+      }
+      if (!Array.isArray(catalog.data)) {
+        return json(res, 502, { error: { type: 'upstream_error', message: 'Upstream model catalog has an invalid format' } });
+      }
+      const capabilities = JSON.parse(await fs.promises.readFile(CAPABILITIES_FILE, 'utf8'));
+      const models = catalog.data.map((model) => ({
+        ...model,
+        ...(capabilities[model.id] || {}),
+        provider: 'kilo',
+      }));
+      const warnings = [];
+      if (vaultKey && vaultSecrets) {
+        const configuredProviders = [
+          ...Object.keys(VAULT_PROVIDERS)
+            .filter((provider) => vaultSecrets[provider])
+            .map((id) => ({ id, provider: id, apiKey: vaultSecrets[id] })),
+          ...Object.keys(vaultSecrets)
+            .filter((id) => CUSTOM_PROVIDER_ID_PATTERN.test(id) && vaultSecrets[id]?.key)
+            .map((id) => ({ id, provider: getCustomProvider(id), apiKey: vaultSecrets[id].key })),
+        ];
+        const results = await Promise.all(configuredProviders.map(async ({ id, provider, apiKey }) => {
+          try {
+            return { provider: id, models: await requestProviderModels(provider, apiKey) };
+          } catch (error) {
+            log(`!! ${id} error GET /models: ${error.message}`);
+            return { provider: id, error: error.message };
+          }
+        }));
+        for (const result of results) {
+          if (result.models) models.push(...result.models);
+          else warnings.push({ provider: result.provider, message: result.error });
+        }
+      }
+      return json(res, 200, {
+        ...catalog,
+        data: models,
+        ...(warnings.length ? { gateway_warnings: warnings } : {}),
+      }, { 'cache-control': 'no-store' });
     }
     if (path === '/v1/chat/completions' && req.method === 'POST') {
       const body = await readBody(req);
       if (!body?.model) return json(res, 400, { error: { type: 'invalid_request', message: 'model is required' } });
+      if (isCustomProviderModel(body.model)) {
+        if (!vaultKey || !vaultSecrets) {
+          return json(res, 403, { error: { type: 'forbidden', message: '自定义服务商模型需要先解锁本机凭据库' } });
+        }
+        const providerId = body.model.slice(0, body.model.indexOf('/'));
+        const provider = getCustomProvider(providerId);
+        if (!provider) {
+          return json(res, 404, { error: { type: 'not_found', message: '自定义服务商不存在或已删除' } });
+        }
+        const model = customProviderModel(body.model, provider);
+        return upstreamCustomProvider(provider, '/chat/completions', { ...body, model }, res, {
+          stream: body.stream === true,
+          model,
+        });
+      }
       // 判断是否为 SenseNova 模型（通过 provider 字段或模型 ID 前缀）
       const isSenseNova = isSenseNovaModel(body.model);
       if (isSenseNova) {
         if (!vaultKey || !vaultSecrets || !vaultSecrets.sensenova) {
           return json(res, 403, { error: { type: 'forbidden', message: 'SenseNova 模型需要先在凭据库中配置并解锁 Key' } });
         }
-        return upstreamSenseNova('/chat/completions', 'POST', body, res, { stream: body.stream === true, model: body.model, apiKey: vaultSecrets.sensenova });
+        const model = stripSenseNovaPrefix(body.model);
+        return upstreamSenseNova('/chat/completions', 'POST', { ...body, model }, res, { stream: body.stream === true, model, apiKey: vaultSecrets.sensenova });
       }
       // 判断是否为 InternLM 模型（模型 ID 以 internlm/ 开头）
       const isInternLM = isInternLMModel(body.model);
@@ -1002,7 +1337,8 @@ const server = http.createServer(async (req, res) => {
         if (!vaultKey || !vaultSecrets || !vaultSecrets.internlm) {
           return json(res, 403, { error: { type: 'forbidden', message: 'InternLM 模型需要先在凭据库中配置并解锁 Key' } });
         }
-        return upstreamInternLM('/chat/completions', 'POST', body, res, { stream: body.stream === true, model: body.model, apiKey: vaultSecrets.internlm });
+        const model = stripModelProviderPrefix(body.model, 'internlm');
+        return upstreamInternLM('/chat/completions', 'POST', { ...body, model }, res, { stream: body.stream === true, model, apiKey: vaultSecrets.internlm });
       }
       if (isSCNetModel(body.model)) {
         if (!vaultKey || !vaultSecrets || !vaultSecrets.scnet) {
@@ -1016,19 +1352,24 @@ const server = http.createServer(async (req, res) => {
     if (path === '/v1/messages' && req.method === 'POST') {
       const body = await readBody(req);
       if (!body?.model) return json(res, 400, { error: { type: 'invalid_request', message: 'model is required' } });
+      if (isCustomProviderModel(body.model)) {
+        return json(res, 400, { error: { type: 'invalid_request', message: '自定义服务商目前仅支持 OpenAI Chat Completions 接口' } });
+      }
       const isSenseNova = isSenseNovaModel(body.model);
       if (isSenseNova) {
         if (!vaultKey || !vaultSecrets || !vaultSecrets.sensenova) {
           return json(res, 403, { error: { type: 'forbidden', message: 'SenseNova 模型需要先在凭据库中配置并解锁 Key' } });
         }
-        return upstreamSenseNova('/v1/messages', 'POST', body, res, { stream: body.stream === true, model: body.model, apiKey: vaultSecrets.sensenova });
+        const model = stripSenseNovaPrefix(body.model);
+        return upstreamSenseNova('/v1/messages', 'POST', { ...body, model }, res, { stream: body.stream === true, model, apiKey: vaultSecrets.sensenova });
       }
       const isInternLM = isInternLMModel(body.model);
       if (isInternLM) {
         if (!vaultKey || !vaultSecrets || !vaultSecrets.internlm) {
           return json(res, 403, { error: { type: 'forbidden', message: 'InternLM 模型需要先在凭据库中配置并解锁 Key' } });
         }
-        return upstreamInternLM('/v1/messages', 'POST', body, res, { stream: body.stream === true, model: body.model, apiKey: vaultSecrets.internlm });
+        const model = stripModelProviderPrefix(body.model, 'internlm');
+        return upstreamInternLM('/v1/messages', 'POST', { ...body, model }, res, { stream: body.stream === true, model, apiKey: vaultSecrets.internlm });
       }
       if (isSCNetModel(body.model)) {
         if (!vaultKey || !vaultSecrets || !vaultSecrets.scnet) {
@@ -1048,19 +1389,24 @@ const server = http.createServer(async (req, res) => {
     }
     if (path === '/v1/responses' && req.method === 'POST') {
       const body = await readBody(req);
+      if (isCustomProviderModel(body?.model)) {
+        return json(res, 400, { error: { type: 'invalid_request', message: '自定义服务商目前仅支持 OpenAI Chat Completions 接口' } });
+      }
       const isSenseNova = isSenseNovaModel(body?.model);
       if (isSenseNova) {
         if (!vaultKey || !vaultSecrets || !vaultSecrets.sensenova) {
           return json(res, 403, { error: { type: 'forbidden', message: 'SenseNova 模型需要先在凭据库中配置并解锁 Key' } });
         }
-        return upstreamSenseNova('/responses', 'POST', body, res, { stream: body?.stream === true, model: body?.model, apiKey: vaultSecrets.sensenova });
+        const model = stripSenseNovaPrefix(body.model);
+        return upstreamSenseNova('/responses', 'POST', { ...body, model }, res, { stream: body?.stream === true, model, apiKey: vaultSecrets.sensenova });
       }
       const isInternLM = isInternLMModel(body?.model);
       if (isInternLM) {
         if (!vaultKey || !vaultSecrets || !vaultSecrets.internlm) {
           return json(res, 403, { error: { type: 'forbidden', message: 'InternLM 模型需要先在凭据库中配置并解锁 Key' } });
         }
-        return upstreamInternLM('/responses', 'POST', body, res, { stream: body?.stream === true, model: body?.model, apiKey: vaultSecrets.internlm });
+        const model = stripModelProviderPrefix(body.model, 'internlm');
+        return upstreamInternLM('/responses', 'POST', { ...body, model }, res, { stream: body?.stream === true, model, apiKey: vaultSecrets.internlm });
       }
       if (isSCNetModel(body?.model)) {
         if (!vaultKey || !vaultSecrets || !vaultSecrets.scnet) {

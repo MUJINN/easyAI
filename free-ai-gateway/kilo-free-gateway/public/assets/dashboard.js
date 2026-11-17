@@ -92,8 +92,10 @@
         const tg = document.createElement('div'); tg.className='card-title-group';
         const title = document.createElement('h2'); title.textContent = m.id; tg.append(title);
         const copyBtn = document.createElement('button'); copyBtn.className='copy-model-button'; copyBtn.type='button'; copyBtn.textContent='复制';
-        copyBtn.setAttribute('aria-label',`复制模型名 ${m.id}`);
-        copyBtn.addEventListener('click', async ev => { ev.stopPropagation(); try{ await copyText(m.id); copyBtn.textContent='已复制'; setTimeout(()=>copyBtn.textContent='复制',1200);}catch{ copyBtn.textContent='复制失败'; setTimeout(()=>copyBtn.textContent='复制',2000);} });
+        const clientModelId = modelIdForClient(m);
+        copyBtn.title = '复制客户端使用的模型 ID（含服务商前缀）';
+        copyBtn.setAttribute('aria-label',`复制客户端模型名 ${clientModelId}`);
+        copyBtn.addEventListener('click', async ev => { ev.stopPropagation(); try{ await copyText(clientModelId); copyBtn.textContent='已复制'; setTimeout(()=>copyBtn.textContent='复制',1200);}catch{ copyBtn.textContent='复制失败'; setTimeout(()=>copyBtn.textContent='复制',2000);} });
         tg.append(copyBtn); h.append(tg); c.append(h);
         if (m.name && m.name!==m.id) { const n=document.createElement('p'); n.className='model-name'; n.textContent=m.name; c.append(n); }
         if (this.selection.has(m.id)) { const s=document.createElement('div'); s.className='selection-status'; s.textContent='已选用于测试'; c.append(s); }
@@ -154,6 +156,7 @@
     }
 
     // ====== 实例化三个目录 ======
+    let currentCustomProviderId = '';
     const kiloCatalog = new ModelCatalog({
       sels: {
         catalog: '#catalog', search: '#search', freeOnly: '#free-only',
@@ -214,12 +217,28 @@
       renderExtraMeta: (card,m) => { /* SCNet 无额外元数据 */ }
     });
 
+    const customProviderCatalog = new ModelCatalog({
+      sels: {
+        catalog: '#custom-provider-catalog', search: '#custom-provider-search', freeOnly: null,
+        status: '#custom-provider-catalog-status', loadBtn: '#load-custom-provider-catalog',
+        testPrompt: '#custom-provider-test-prompt', testBtn: '#custom-provider-test-button', testResult: '#custom-provider-test-result',
+        topTestBtn: '#custom-provider-top-test-button', topStopBtn: '#custom-provider-top-stop-button', clearSelBtn: '#custom-provider-clear-selection',
+        selectVisibleBtn: '#custom-provider-select-visible-button', selectedOnlyBtn: '#custom-provider-selected-only-button',
+        selectionStatus: '#custom-provider-selection-status',
+      },
+      catalogEndpoint: '', testEndpoint: '', providerName: '自定义服务商',
+      extraFilter: () => true,
+      renderExtraBadges: () => [],
+      renderExtraMeta: () => {},
+    });
+
     // Get active catalog from the currently displayed page.
     function getActiveCatalog() {
       if (!$('#kilo-view').hidden) return kiloCatalog;
       if (!$('#sensenova-view').hidden) return sensenovaCatalog;
       if (!$('#internlm-view').hidden) return internlmCatalog;
       if (!$('#scnet-view').hidden) return scnetCatalog;
+      if (!$('#custom-provider-view').hidden) return customProviderCatalog;
       return null;
     }
 
@@ -304,6 +323,140 @@
       }
     }
 
+    function renderCustomProviderCards() {
+      const grid = $('.entry-grid');
+      const addProviderCard = $('#open-custom-providers').closest('.entry-card');
+      grid.querySelectorAll('[data-custom-provider-entry]').forEach((card) => card.remove());
+      const providers = state.vault?.unlocked
+        ? state.vault.providers.filter((provider) => provider.custom)
+        : [];
+
+      for (const provider of [...providers].reverse()) {
+        const card = document.createElement('article');
+        card.className = 'entry-card';
+        card.dataset.customProviderEntry = provider.id;
+
+        const top = document.createElement('div');
+        top.className = 'entry-card-top';
+        const mark = document.createElement('div');
+        mark.className = 'entry-mark';
+        mark.setAttribute('aria-hidden', 'true');
+        mark.textContent = provider.name.trim().slice(0, 2).toUpperCase() || 'API';
+        const badge = document.createElement('span');
+        badge.className = 'entry-badge key-required';
+        badge.textContent = '自定义服务商';
+        top.append(mark, badge);
+
+        const name = document.createElement('h3');
+        name.textContent = provider.name;
+        const description = document.createElement('p');
+        description.textContent = provider.baseUrl
+          ? `${provider.baseUrl} · OpenAI Chat Completions 兼容接口`
+          : 'OpenAI Chat Completions 兼容接口';
+        const features = document.createElement('ul');
+        for (const text of ['凭据在本机加密保存', '支持模型目录、测试与转发']) {
+          const item = document.createElement('li');
+          item.textContent = text;
+          features.append(item);
+        }
+        const open = document.createElement('button');
+        open.className = 'primary';
+        open.type = 'button';
+        open.textContent = '浏览模型';
+        open.addEventListener('click', () => openCustomProvider(provider.id));
+
+        card.append(top, name, description, features, open);
+        grid.insertBefore(card, addProviderCard);
+      }
+    }
+
+    function renderCustomProviderList() {
+      const root = $('#custom-provider-list');
+      root.replaceChildren();
+      const providers = state.vault?.providers?.filter((provider) => provider.custom) || [];
+      if (!providers.length) {
+        const empty = document.createElement('p');
+        empty.className = 'muted';
+        empty.textContent = '尚未添加自定义服务商。';
+        root.append(empty);
+        return;
+      }
+      for (const provider of providers) {
+        const item = document.createElement('article');
+        item.className = 'custom-provider-item';
+        const copy = document.createElement('div');
+        copy.className = 'custom-provider-item-copy';
+        const name = document.createElement('h4');
+        name.className = 'custom-provider-item-name';
+        name.textContent = provider.name;
+        const url = document.createElement('p');
+        url.className = 'custom-provider-item-url';
+        url.textContent = provider.baseUrl || '服务商地址在凭据库解锁后可查看';
+        copy.append(name, url);
+        const actions = document.createElement('div');
+        actions.className = 'custom-provider-item-actions';
+        const open = document.createElement('button');
+        open.type = 'button';
+        open.className = 'primary';
+        open.textContent = '模型目录';
+        open.addEventListener('click', () => openCustomProvider(provider.id));
+        const edit = document.createElement('button');
+        edit.type = 'button';
+        edit.textContent = '编辑';
+        edit.addEventListener('click', () => editCustomProvider(provider.id));
+        actions.append(open, edit);
+        item.append(copy, actions);
+        root.append(item);
+      }
+    }
+
+    function resetCustomProviderForm() {
+      currentCustomProviderId = '';
+      $('#custom-provider-id').value = '';
+      $('#custom-provider-name').value = '';
+      $('#custom-provider-base-url').value = '';
+      $('#custom-provider-api-key').value = '';
+      $('#custom-provider-api-key').placeholder = '新建时必填';
+      $('#save-custom-provider').textContent = '加密保存自定义服务商';
+      $('#cancel-custom-provider-edit').hidden = true;
+      $('#custom-provider-save-status').textContent = '';
+    }
+
+    function editCustomProvider(id) {
+      const provider = state.vault?.providers?.find((item) => item.id === id && item.custom);
+      if (!provider) return;
+      currentCustomProviderId = id;
+      $('#custom-provider-id').value = id;
+      $('#custom-provider-name').value = provider.name;
+      $('#custom-provider-base-url').value = provider.baseUrl;
+      $('#custom-provider-api-key').value = '';
+      $('#custom-provider-api-key').placeholder = '留空则保留已保存的 Key';
+      $('#save-custom-provider').textContent = '保存服务商设置';
+      $('#cancel-custom-provider-edit').hidden = false;
+      $('#custom-provider-save-status').textContent = '';
+      showView('vault');
+      $('#custom-provider-name').focus();
+    }
+
+    function openCustomProvider(id) {
+      const provider = state.vault?.providers?.find((item) => item.id === id && item.custom);
+      if (!provider || !state.vault?.unlocked) return;
+      currentCustomProviderId = id;
+      customProviderCatalog.providerName = provider.name;
+      customProviderCatalog.catalogEndpoint = `/api/custom-providers/${encodeURIComponent(id)}/catalog`;
+      customProviderCatalog.testEndpoint = `/api/custom-providers/${encodeURIComponent(id)}/test`;
+      customProviderCatalog.models = [];
+      customProviderCatalog.loaded = false;
+      customProviderCatalog.selection.clear();
+      customProviderCatalog.results.clear();
+      customProviderCatalog.anchor = '';
+      $('#custom-provider-page-title').textContent = provider.name;
+      $('#custom-provider-page-description').textContent = `${provider.baseUrl} · OpenAI Chat Completions 兼容接口`;
+      $('#delete-custom-provider').dataset.providerId = id;
+      showView('custom-provider');
+      customProviderCatalog.load();
+    }
+
     function renderVaultStatus() {
       const vault = state.vault;
       const initialized = Boolean(vault?.initialized);
@@ -340,7 +493,8 @@
       } else {
         $('#vault-lock-state').textContent = '';
       }
-
+      renderCustomProviderList();
+      renderCustomProviderCards();
     }
 
     // Vault status cache: avoid refetching on every tab switch
@@ -378,6 +532,7 @@
         home: $('#home-view'),
         kilo: $('#kilo-view'),
         vault: $('#vault-view'),
+        'custom-provider': $('#custom-provider-view'),
         sensenova: $('#sensenova-view'),
         internlm: $('#internlm-view'),
         scnet: $('#scnet-view'),
@@ -389,7 +544,7 @@
       $('#catalog-status').hidden = name !== 'kilo';
       window.scrollTo({ top: 0, behavior: 'auto' });
       if (name === 'kilo' && !kiloCatalog.loaded) kiloCatalog.load();
-      if (['vault', 'sensenova', 'internlm', 'scnet'].includes(name)) loadVaultStatus();
+      if (['vault', 'custom-provider', 'sensenova', 'internlm', 'scnet'].includes(name)) loadVaultStatus();
       const activeCatalog = getActiveCatalog();
       if (activeCatalog) {
         activeCatalog.render();
@@ -446,6 +601,7 @@
 
     $('#open-kilo').addEventListener('click', () => showView('kilo'));
     $('#open-providers').addEventListener('click', () => showView('vault'));
+    $('#open-custom-providers').addEventListener('click', () => showView('vault'));
     $('#home-button').addEventListener('click', () => showView('home'));
     $('#vault-unlock-button').addEventListener('click', async () => {
       const password = $('#vault-password').value;
@@ -521,6 +677,7 @@
       $('#sensenova-api-key').value = '';
       $('#internlm-api-key').value = '';
       $('#scnet-api-key').value = '';
+      $('#custom-provider-api-key').value = '';
       try {
         state.vault = await vaultRequest('/api/vault/lock', { method: 'POST' });
         renderVaultStatus();
@@ -528,6 +685,65 @@
         $('#vault-lock-state').textContent = '凭据库已锁定。';
       } catch (error) {
         $('#vault-key-status').textContent = error.message || '锁定失败，请重试。';
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    $('#save-custom-provider').addEventListener('click', async () => {
+      const id = $('#custom-provider-id').value;
+      const name = $('#custom-provider-name').value.trim();
+      const baseUrl = $('#custom-provider-base-url').value.trim();
+      const key = $('#custom-provider-api-key').value.trim();
+      const status = $('#custom-provider-save-status');
+      const button = $('#save-custom-provider');
+      if (!name || !baseUrl || (!id && !key)) {
+        status.textContent = '请填写服务商名称、Base URL 和 API Key。';
+        return;
+      }
+      button.disabled = true;
+      status.textContent = '正在加密并保存服务商设置…';
+      try {
+        state.vault = await vaultRequest(
+          id ? `/api/vault/custom-providers/${encodeURIComponent(id)}` : '/api/vault/custom-providers',
+          {
+            method: id ? 'PUT' : 'POST',
+            body: { name, baseUrl, key },
+          },
+        );
+        renderVaultStatus();
+        markVaultStatusDirty();
+        resetCustomProviderForm();
+        $('#custom-provider-save-status').textContent = '服务商设置和 Key 已加密保存在本机。';
+      } catch (error) {
+        status.textContent = error.message || '保存失败，请重试。';
+      } finally {
+        $('#custom-provider-api-key').value = '';
+        button.disabled = false;
+      }
+    });
+    $('#cancel-custom-provider-edit').addEventListener('click', resetCustomProviderForm);
+    $('#back-to-custom-providers').addEventListener('click', () => showView('vault'));
+    $('#edit-custom-provider').addEventListener('click', () => editCustomProvider(currentCustomProviderId));
+    $('#delete-custom-provider').addEventListener('click', async () => {
+      const id = $('#delete-custom-provider').dataset.providerId;
+      const provider = state.vault?.providers?.find((item) => item.id === id);
+      if (!id || !window.confirm(`确定删除“${provider?.name || '此服务商'}”及其本机保存的 API Key 吗？`)) return;
+      const status = $('#custom-provider-page-status');
+      const button = $('#delete-custom-provider');
+      button.disabled = true;
+      status.textContent = '正在删除…';
+      try {
+        state.vault = await vaultRequest(`/api/vault/custom-providers/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        renderVaultStatus();
+        markVaultStatusDirty();
+        resetCustomProviderForm();
+        customProviderCatalog.models = [];
+        customProviderCatalog.selection.clear();
+        showView('vault');
+        $('#custom-provider-save-status').textContent = '已删除自定义服务商及其凭据。';
+      } catch (error) {
+        status.textContent = error.message || '删除失败，请重试。';
       } finally {
         button.disabled = false;
       }
@@ -882,6 +1098,13 @@
       return ['claude-code', 'cc-switch-claude'].includes(client) ? base : `${base}/v1`;
     }
 
+    function modelIdForClient(model) {
+      const provider = model.provider || model.upstream;
+      if (!['sensenova', 'internlm', 'scnet'].includes(provider)) return model.id;
+      const prefix = `${provider}/`;
+      return model.id.toLowerCase().startsWith(prefix) ? model.id : `${prefix}${model.id}`;
+    }
+
     const SETUP_CLIENT_GROUPS = {
       '聊天与办公': ['chatbox', 'cherry-studio', 'workbuddy', 'loomy', 'workswarm', 'qclaw'],
       '编程助手': ['cline', 'continue-json', 'trae', 'deepseek-harness', 'opencode', 'hermes-agent', 'openfic', 'github-copilot-byok', 'vscode-copilot-chat', 'claude-code'],
@@ -1157,8 +1380,9 @@
     let setupDialogTrigger = null;
     function openSetupDialog(model, provider) {
       setupDialogTrigger = document.activeElement; // Save element that opened dialog
-      $('#setup-model-label').textContent = `当前模型：${model.id}`;
-      $('#setup-model-id').value = model.id;
+      const clientModelId = modelIdForClient(model);
+      $('#setup-model-label').textContent = `当前模型：${clientModelId}`;
+      $('#setup-model-id').value = clientModelId;
       // 预填 Base URL 和 API Key 根据上游来源
       if (['sensenova', 'internlm', 'scnet'].includes(provider)) {
         $('#setup-base-url').value = setupBaseUrl('claude-code');
@@ -1287,3 +1511,4 @@
     checkAndShowProviderSections();
 
     showView('home');
+    loadVaultStatus();

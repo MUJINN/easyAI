@@ -89,6 +89,19 @@
           </ul>
           <button id="open-scnet" type="button">接入 SCNet</button>
         </article>
+        <article class="entry-card">
+          <div class="entry-card-top">
+            <div class="entry-mark" aria-hidden="true">API</div>
+            <span class="entry-badge key-required">兼容 OpenAI API</span>
+          </div>
+          <h3>自定义模型服务商</h3>
+          <p>手动填写服务商 API 地址、Key 和模型目录，接入任意兼容 OpenAI Chat Completions 的服务。</p>
+          <ul>
+            <li>凭据在本机加密保存</li>
+            <li>支持读取模型目录、测试与转发</li>
+          </ul>
+          <button id="open-custom-providers" type="button">添加自定义服务商</button>
+        </article>
       </div>
       <div class="home-provider-management">
         <button id="open-providers" type="button">管理所有服务商与本机凭据</button>
@@ -174,6 +187,29 @@
             <span>SCNet 模型 API Key</span>
             <input id="scnet-api-key" type="password" autocomplete="off" spellcheck="false" placeholder="输入或替换 SCNet 模型 API Key">
           </label>
+          <section class="flow-panel custom-provider-manager" aria-labelledby="custom-provider-manager-title">
+            <h3 id="custom-provider-manager-title">自定义 OpenAI 兼容服务商</h3>
+            <p class="flow-intro">填写服务商名称、Base URL（例如 https://api.example.com/v1）和 API Key。Key 与配置一起加密保存在本机；仅支持 OpenAI Chat Completions 格式。</p>
+            <div id="custom-provider-list" class="custom-provider-list" aria-live="polite"></div>
+            <input id="custom-provider-id" type="hidden">
+            <label class="vault-field" for="custom-provider-name">
+              <span>服务商名称</span>
+              <input id="custom-provider-name" type="text" maxlength="80" autocomplete="off" placeholder="例如：我的模型 API">
+            </label>
+            <label class="vault-field" for="custom-provider-base-url">
+              <span>Base URL</span>
+              <input id="custom-provider-base-url" type="url" maxlength="2048" autocomplete="url" placeholder="https://api.example.com/v1">
+            </label>
+            <label class="vault-field" for="custom-provider-api-key">
+              <span>API Key</span>
+              <input id="custom-provider-api-key" type="password" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="新建时必填；编辑时留空则保留已保存的 Key">
+            </label>
+            <div class="vault-actions">
+              <button id="save-custom-provider" class="primary" type="button">加密保存自定义服务商</button>
+              <button id="cancel-custom-provider-edit" type="button" hidden>取消编辑</button>
+              <span id="custom-provider-save-status" class="vault-state" role="status" aria-live="polite"></span>
+            </div>
+          </section>
           <div class="vault-actions">
             <button id="save-sensenova-key" class="primary" type="button">加密保存 SenseNova Key</button>
             <button id="delete-sensenova-key" type="button">删除已保存 SenseNova Key</button>
@@ -192,6 +228,52 @@
         <button id="vault-open-internlm" type="button">InternLM</button>
         <button id="vault-open-scnet" type="button">SCNet</button>
       </nav>
+    </section>
+
+    <section id="custom-provider-view" aria-labelledby="custom-provider-page-title" hidden>
+      <div class="provider-page-heading">
+        <div class="provider-heading">
+          <div>
+            <h2 id="custom-provider-page-title">自定义服务商</h2>
+            <p id="custom-provider-page-description">OpenAI Chat Completions 兼容接口</p>
+          </div>
+        </div>
+        <button id="edit-custom-provider" type="button">编辑服务商</button>
+        <button id="back-to-custom-providers" type="button">返回服务商管理</button>
+      </div>
+      <div class="bar">
+        <button id="load-custom-provider-catalog" class="primary" type="button">加载模型目录</button>
+        <span id="custom-provider-catalog-status" class="muted" role="status"></span>
+      </div>
+      <div class="bar">
+        <input id="custom-provider-search" type="search" placeholder="搜索模型" aria-label="搜索自定义服务商模型">
+      </div>
+      <div class="settings selection-toolbar">
+        <span id="custom-provider-selection-status" class="muted">点击卡片选中；按住鼠标左键拖框，Shift 点击可范围多选。</span>
+        <div class="selection-actions">
+          <button id="custom-provider-select-visible-button" type="button">全选当前结果</button>
+          <button id="custom-provider-selected-only-button" type="button" aria-pressed="false">仅看已选</button>
+          <button id="custom-provider-top-test-button" class="primary" aria-label="测试已选模型" disabled>测试</button>
+          <button id="custom-provider-top-stop-button" aria-label="停止批量测试" hidden>停止测试</button>
+          <button id="custom-provider-clear-selection" aria-label="清空测试选择" disabled>清空选择</button>
+        </div>
+      </div>
+      <section id="custom-provider-catalog" class="catalog" role="group" aria-label="自定义服务商模型列表，可多选测试">
+        <div class="empty">加载自定义服务商模型目录以开始</div>
+      </section>
+      <details class="panel" style="margin-top: 16px;">
+        <summary class="section-title" style="cursor: pointer; user-select: none;">问答测试（批量测试将使用此提示词）</summary>
+        <div class="test-grid">
+          <textarea id="custom-provider-test-prompt" maxlength="2000" aria-label="自定义服务商测试提示词" placeholder="请输入任意测试提示词"></textarea>
+          <button id="custom-provider-test-button" class="primary" disabled>发送一次测试请求</button>
+        </div>
+        <div id="custom-provider-test-result" class="result hidden" role="status"></div>
+        <footer>测试提示词会发送给此服务商并可能消耗额度；网关日志不记录提示词或模型回复。</footer>
+      </details>
+      <div class="vault-actions">
+        <button id="delete-custom-provider" type="button">删除此服务商</button>
+        <span id="custom-provider-page-status" class="vault-state" role="status" aria-live="polite"></span>
+      </div>
     </section>
 
       <section id="sensenova-view" aria-labelledby="sensenova-page-title" hidden>

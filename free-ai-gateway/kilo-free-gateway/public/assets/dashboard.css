@@ -90,7 +90,7 @@
     .notice { border: 1px solid var(--notice-border); background: var(--notice-bg); color: var(--notice-text); border-radius: 10px; padding: 13px 15px; line-height: 1.5; font-size: 13px; margin-bottom: 20px; }
     .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
     input, select, textarea, button { font: inherit; }
-    input[type="search"], input[type="password"], select, textarea { color: var(--text); background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: 8px; padding: 10px 12px; }
+    input[type="search"], input[type="password"], input[type="text"], input[type="url"], select, textarea { color: var(--text); background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: 8px; padding: 10px 12px; }
     input[type="search"] { flex: 1; min-width: 220px; }
     input[type="password"] { width: min(330px, 100%); }
     button { border: 1px solid var(--button-border); background: var(--button-bg); color: var(--text); border-radius: 8px; padding: 9px 13px; cursor: pointer; }
@@ -237,6 +237,15 @@
     .vault-actions button { margin: 0; }
     .vault-state { color: var(--selected-text); font-size: 12px; }
     .vault-warning { color: var(--notice-text); }
+    .custom-provider-manager { margin-top: 18px; padding: 16px; border-radius: 12px; background: var(--surface-raised); }
+    .custom-provider-manager h3 { margin: 0 0 8px; font-size: 15px; }
+    .custom-provider-list { display: grid; gap: 8px; margin: 12px 0 16px; }
+    .custom-provider-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+    .custom-provider-item-copy { min-width: 0; }
+    .custom-provider-item-name { margin: 0; font-size: 13px; font-weight: 650; }
+    .custom-provider-item-url { overflow: hidden; margin: 4px 0 0; color: var(--muted); font: 11px/1.5 ui-monospace, Consolas, monospace; text-overflow: ellipsis; white-space: nowrap; }
+    .custom-provider-item-actions { display: flex; flex: 0 0 auto; flex-wrap: wrap; gap: 6px; }
+    .custom-provider-item-actions button { padding: 7px 10px; font-size: 12px; }
     .test-grid { display: grid; grid-template-columns: minmax(200px, 1fr) auto; gap: 10px; margin-top: 12px; }
     textarea { width: 100%; min-height: 78px; resize: vertical; grid-column: 1 / -1; line-height: 1.5; }
     pre { overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--surface-inset); border: 1px solid var(--border); border-radius: 8px; padding: 13px; color: var(--soft-text); line-height: 1.5; font-size: 12px; }
@@ -344,5 +353,8 @@
       .entry-card { min-height: 230px; }
       .flow-steps { grid-template-columns: 1fr; }
       .provider-page-heading { align-items: flex-start; flex-direction: column; }
+      .custom-provider-item { align-items: flex-start; flex-direction: column; }
+      .custom-provider-item-actions { width: 100%; }
+      .custom-provider-item-actions button { flex: 1; }
     }
     @media (max-width: 600px) { .top { align-items: flex-start; flex-direction: column; } .header-tools { width: 100%; justify-content: space-between; } .test-grid { grid-template-columns: 1fr; } }

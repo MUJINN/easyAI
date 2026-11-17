@@ -36,6 +36,7 @@ test('serves local dashboard, enforces auth, and validates manual tests', async 
       PORT: String(port),
       LOCAL_KEY: KEY,
       EASYAI_VAULT_PATH: vaultPath,
+      NODE_OPTIONS: [process.env.NODE_OPTIONS, `--require=${path.join(ROOT, 'test-support', 'mock-upstreams.cjs')}`].filter(Boolean).join(' '),
     },
     stdio: 'ignore',
   });
@@ -65,6 +66,8 @@ test('serves local dashboard, enforces auth, and validates manual tests', async 
     assert.match(pageHtml, /id="open-kilo"/);
     assert.match(pageHtml, /id="open-providers"/);
     assert.match(pageHtml, /id="vault-view"/);
+    assert.match(pageHtml, /id="custom-provider-name"/);
+    assert.match(pageHtml, /id="custom-provider-view"/);
     assert.match(pageHtml, /id="sensenova-view"/);
     assert.match(pageHtml, /id="internlm-view"/);
     assert.match(pageHtml, /id="scnet-view"/);
@@ -187,16 +190,107 @@ test('serves local dashboard, enforces auth, and validates manual tests', async 
     const savedWithScnet = await saveScnetKey.json();
     assert.equal(savedWithScnet.providers.find((provider) => provider.id === 'scnet').configured, true);
     assert.equal(JSON.stringify(savedWithScnet).includes(scnetKey), false);
+    const internlmKey = 'internlm-test-key';
+    const saveInternlmKey = await fetch(`${baseUrl}/api/vault/providers/internlm`, {
+      method: 'PUT',
+      headers: { ...vaultHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: internlmKey }),
+    });
+    assert.equal(saveInternlmKey.status, 200);
+    const invalidCustomProvider = await fetch(`${baseUrl}/api/vault/custom-providers`, {
+      method: 'POST',
+      headers: { ...vaultHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Invalid', baseUrl: 'ftp://custom.example/v1', key: 'invalid-key' }),
+    });
+    assert.equal(invalidCustomProvider.status, 400);
+    const customProviderKey = 'custom-provider-secret';
+    const createCustomProvider = await fetch(`${baseUrl}/api/vault/custom-providers`, {
+      method: 'POST',
+      headers: { ...vaultHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Custom Test Provider',
+        baseUrl: 'https://custom.example/v1/',
+        key: customProviderKey,
+      }),
+    });
+    assert.equal(createCustomProvider.status, 201);
+    const createdCustomStatus = await createCustomProvider.json();
+    const customProvider = createdCustomStatus.providers.find((provider) => provider.custom);
+    assert.ok(customProvider);
+    assert.match(customProvider.id, /^custom-[a-f0-9-]{36}$/);
+    assert.equal(customProvider.baseUrl, 'https://custom.example/v1');
+    assert.equal(JSON.stringify(createdCustomStatus).includes(customProviderKey), false);
+
+    const customCatalogResponse = await fetch(`${baseUrl}/api/custom-providers/${customProvider.id}/catalog`, { headers: vaultHeaders });
+    assert.equal(customCatalogResponse.status, 200);
+    const customCatalog = await customCatalogResponse.json();
+    assert.deepEqual(customCatalog.data.map((model) => model.id), [`${customProvider.id}/custom-test-model`]);
+    assert.equal(customCatalog.data[0].provider, customProvider.id);
+
+    const customTestResponse = await fetch(`${baseUrl}/api/custom-providers/${customProvider.id}/test`, {
+      method: 'POST',
+      headers: { ...vaultHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: customCatalog.data[0].id, prompt: 'Say hello' }),
+    });
+    assert.equal(customTestResponse.status, 200);
+    assert.equal((await customTestResponse.json()).choices[0].message.content, 'custom provider works');
+
+    const updateCustomProvider = await fetch(`${baseUrl}/api/vault/custom-providers/${customProvider.id}`, {
+      method: 'PUT',
+      headers: { ...vaultHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Updated Custom Provider', baseUrl: customProvider.baseUrl, key: '' }),
+    });
+    assert.equal(updateCustomProvider.status, 200);
+    assert.equal((await updateCustomProvider.json()).providers.find((provider) => provider.id === customProvider.id).name, 'Updated Custom Provider');
+
+    const customChatResponse = await fetch(`${baseUrl}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { ...vaultHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: customCatalog.data[0].id, messages: [{ role: 'user', content: 'hello' }] }),
+    });
+    assert.equal(customChatResponse.status, 200);
+    assert.equal((await customChatResponse.json()).choices[0].message.content, 'custom provider works');
+    const customAnthropicResponse = await fetch(`${baseUrl}/v1/messages`, {
+      method: 'POST',
+      headers: { ...vaultHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: customCatalog.data[0].id, messages: [] }),
+    });
+    assert.equal(customAnthropicResponse.status, 400);
+
     const encryptedVault = await fs.readFile(vaultPath, 'utf8');
     assert.equal(encryptedVault.includes(apiKey), false);
     assert.equal(encryptedVault.includes(scnetKey), false);
+    assert.equal(encryptedVault.includes(internlmKey), false);
+    assert.equal(encryptedVault.includes(customProviderKey), false);
     assert.equal(encryptedVault.includes(masterPassword), false);
+
+    const combinedModelsResponse = await fetch(`${baseUrl}/v1/models`, { headers: vaultHeaders });
+    assert.equal(combinedModelsResponse.status, 200);
+    const combinedModels = await combinedModelsResponse.json();
+    assert.deepEqual(combinedModels.data.map((model) => model.id).sort(), [
+      `${customProvider.id}/custom-test-model`,
+      'internlm/internlm-test-model',
+      'kilo-test-model',
+      'scnet/scnet-test-model',
+      'sensenova/nova-test-model',
+    ]);
+    assert.equal(combinedModels.data.find((model) => model.id.startsWith('scnet/')).provider, 'scnet');
+    assert.equal(combinedModels.gateway_warnings, undefined);
 
     const lockResponse = await fetch(`${baseUrl}/api/vault/lock`, {
       method: 'POST',
       headers: vaultHeaders,
     });
     assert.equal((await lockResponse.json()).unlocked, false);
+    const lockedModels = await fetch(`${baseUrl}/v1/models`, { headers: vaultHeaders });
+    assert.equal(lockedModels.status, 200);
+    assert.deepEqual((await lockedModels.json()).data.map((model) => model.id), ['kilo-test-model']);
+    const lockedCustomModel = await fetch(`${baseUrl}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { ...vaultHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: customCatalog.data[0].id, messages: [] }),
+    });
+    assert.equal(lockedCustomModel.status, 403);
 
     const wrongUnlock = await fetch(`${baseUrl}/api/vault/unlock`, {
       method: 'POST',
@@ -213,6 +307,19 @@ test('serves local dashboard, enforces auth, and validates manual tests', async 
     assert.equal(unlockResponse.status, 200);
     assert.equal((await unlockResponse.json()).unlocked, true);
 
+    const deleteCustomProvider = await fetch(`${baseUrl}/api/vault/custom-providers/${customProvider.id}`, {
+      method: 'DELETE',
+      headers: vaultHeaders,
+    });
+    assert.equal(deleteCustomProvider.status, 200);
+    assert.equal((await deleteCustomProvider.json()).providers.some((provider) => provider.id === customProvider.id), false);
+    const deletedCustomModel = await fetch(`${baseUrl}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { ...vaultHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: customCatalog.data[0].id, messages: [] }),
+    });
+    assert.equal(deletedCustomModel.status, 404);
+
     const deleteKey = await fetch(`${baseUrl}/api/vault/providers/sensenova`, {
       method: 'DELETE',
       headers: vaultHeaders,
@@ -225,6 +332,12 @@ test('serves local dashboard, enforces auth, and validates manual tests', async 
     });
     assert.equal(deleteScnetKey.status, 200);
     assert.equal((await deleteScnetKey.json()).providers.find((provider) => provider.id === 'scnet').configured, false);
+    const deleteInternlmKey = await fetch(`${baseUrl}/api/vault/providers/internlm`, {
+      method: 'DELETE',
+      headers: vaultHeaders,
+    });
+    assert.equal(deleteInternlmKey.status, 200);
+    assert.equal((await deleteInternlmKey.json()).providers.find((provider) => provider.id === 'internlm').configured, false);
     const missingScnetKey = await fetch(`${baseUrl}/api/scnet/catalog`, { headers: vaultHeaders });
     assert.equal(missingScnetKey.status, 404);
     const blockedScnetRoute = await fetch(`${baseUrl}/v1/chat/completions`, {
@@ -233,6 +346,17 @@ test('serves local dashboard, enforces auth, and validates manual tests', async 
       body: JSON.stringify({ model: 'scnet/example-model', messages: [] }),
     });
     assert.equal(blockedScnetRoute.status, 403);
+    for (const [providerModel, provider] of [
+      ['sensenova/example-model', 'SenseNova'],
+      ['internlm/example-model', 'InternLM'],
+    ]) {
+      const blockedProviderRoute = await fetch(`${baseUrl}/v1/chat/completions`, {
+        method: 'POST',
+        headers: { ...vaultHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: providerModel, messages: [] }),
+      });
+      assert.equal(blockedProviderRoute.status, 403, `${provider} prefixed model IDs should route to that provider`);
+    }
 
     const guide = await fetch(`${baseUrl}/docs/client-guides/third-party-api-setup.html`);
     assert.equal(guide.status, 200);
