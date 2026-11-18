@@ -760,6 +760,120 @@ function validVaultOrigin(req) {
   }
 }
 
+function claudeCodeSettingsPath() {
+  return process.env.EASYAI_CLAUDE_SETTINGS_PATH
+    ? pathModule.resolve(process.env.EASYAI_CLAUDE_SETTINGS_PATH)
+    : pathModule.join(os.homedir(), '.claude', 'settings.json');
+}
+
+function validateClaudeCodeConfig(body) {
+  if (body?.confirmed !== true) {
+    throw new VaultError(400, '请先在控制台确认配置变更');
+  }
+  for (const field of ['baseUrl', 'apiKey', 'model']) {
+    if (typeof body[field] !== 'string' || !body[field].trim() || body[field].length > 4096) {
+      throw new VaultError(400, `Claude Code 配置字段无效：${field}`);
+    }
+  }
+  let baseUrl;
+  try {
+    baseUrl = new URL(body.baseUrl);
+  } catch {
+    throw new VaultError(400, 'Claude Code 地址格式无效');
+  }
+  if (
+    baseUrl.protocol !== 'http:'
+    || !['127.0.0.1', 'localhost', '[::1]'].includes(baseUrl.hostname)
+    || baseUrl.username
+    || baseUrl.password
+    || baseUrl.pathname !== '/'
+    || baseUrl.search
+    || baseUrl.hash
+  ) {
+    throw new VaultError(400, 'Claude Code 地址必须是本机网关地址');
+  }
+  return {
+    ANTHROPIC_BASE_URL: baseUrl.origin,
+    ANTHROPIC_AUTH_TOKEN: body.apiKey.trim(),
+    ANTHROPIC_MODEL: body.model.trim(),
+  };
+}
+
+async function inspectClaudeCodeSettings() {
+  const file = claudeCodeSettingsPath();
+  let contents;
+  try {
+    contents = await fs.promises.readFile(file, 'utf8');
+  } catch (error) {
+    if (error.code === 'ENOENT') return { path: file, exists: false, valid: true };
+    throw error;
+  }
+  try {
+    const settings = JSON.parse(contents);
+    if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
+      throw new Error('settings must be an object');
+    }
+    return {
+      path: file,
+      exists: true,
+      valid: true,
+      current: {
+        baseUrl: typeof settings.env?.ANTHROPIC_BASE_URL === 'string' ? settings.env.ANTHROPIC_BASE_URL : '',
+        model: typeof settings.env?.ANTHROPIC_MODEL === 'string' ? settings.env.ANTHROPIC_MODEL : '',
+        hasAuthToken: typeof settings.env?.ANTHROPIC_AUTH_TOKEN === 'string' && settings.env.ANTHROPIC_AUTH_TOKEN.length > 0,
+      },
+    };
+  } catch {
+    return { path: file, exists: true, valid: false };
+  }
+}
+
+async function applyClaudeCodeSettings(body) {
+  const updates = validateClaudeCodeConfig(body);
+  const file = claudeCodeSettingsPath();
+  let contents;
+  let settings = {};
+  try {
+    contents = await fs.promises.readFile(file, 'utf8');
+    settings = JSON.parse(contents);
+  } catch (error) {
+    if (error.code !== 'ENOENT') {
+      if (error instanceof SyntaxError) {
+        throw new VaultError(409, 'Claude Code 配置文件不是有效 JSON，未做修改');
+      }
+      throw error;
+    }
+  }
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
+    throw new VaultError(409, 'Claude Code 配置文件格式不受支持，未做修改');
+  }
+  if (settings.env !== undefined && (!settings.env || typeof settings.env !== 'object' || Array.isArray(settings.env))) {
+    throw new VaultError(409, 'Claude Code 配置中的 env 字段格式不受支持，未做修改');
+  }
+  const updated = {
+    ...settings,
+    env: { ...(settings.env || {}), ...updates },
+  };
+  await fs.promises.mkdir(pathModule.dirname(file), { recursive: true, mode: 0o700 });
+  let backupPath = null;
+  if (contents !== undefined) {
+    const suffix = `${new Date().toISOString().replace(/[:.]/g, '-')}-${crypto.randomBytes(4).toString('hex')}`;
+    backupPath = `${file}.easyai-backup-${suffix}`;
+    await fs.promises.copyFile(file, backupPath, fs.constants.COPYFILE_EXCL);
+  }
+  const temporaryFile = `${file}.${process.pid}.${crypto.randomBytes(6).toString('hex')}.tmp`;
+  try {
+    await fs.promises.writeFile(temporaryFile, `${JSON.stringify(updated, null, 2)}\n`, { encoding: 'utf8', mode: 0o600, flag: 'wx' });
+    await fs.promises.rename(temporaryFile, file);
+  } catch (error) {
+    await fs.promises.unlink(temporaryFile).catch((cleanupError) => {
+      if (cleanupError.code !== 'ENOENT') throw cleanupError;
+    });
+    throw error;
+  }
+  return { path: file, backupPath, updatedKeys: Object.keys(updates) };
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const path = url.pathname;
@@ -811,6 +925,18 @@ const server = http.createServer(async (req, res) => {
   }
 
   try {
+    if (path.startsWith('/api/client-config/')) {
+      if (!validVaultOrigin(req)) {
+        return json(res, 403, { error: { type: 'forbidden', message: '客户端配置只允许从本机控制台访问' } });
+      }
+      if (path === '/api/client-config/claude-code' && req.method === 'GET') {
+        return json(res, 200, await inspectClaudeCodeSettings(), { 'cache-control': 'no-store' });
+      }
+      if (path === '/api/client-config/claude-code/apply' && req.method === 'POST') {
+        return json(res, 200, await applyClaudeCodeSettings(await readBody(req)), { 'cache-control': 'no-store' });
+      }
+    }
+
     if (path.startsWith('/api/vault/')) {
       if (!validVaultOrigin(req)) {
         return json(res, 403, { error: { type: 'forbidden', message: '凭据库只允许从本机控制台访问' } });

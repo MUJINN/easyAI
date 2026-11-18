@@ -142,7 +142,7 @@
           const promptSummary = promptPreview ? `\n提示词预览：${promptPreview}${promptPreview.length < prompt.trim().length ? '…' : ''}` : '\n当前提示词为空。';
           if (!window.confirm(`即将向 ${this.providerName} 上游依次发送 ${ids.length} 个请求，可能消耗额度或发送到不同服务商。${promptSummary}\n确定开始批量测试吗？`)) return;
         }
-        this.testing=true; this.stopRequested=false; ids.forEach(id=>this.results.set(id,{status:'queued'})); this.updateControls(); this.render(); this._showResult(`准备按顺序测试 ${ids.length} 个 ${this.providerName} 模型…`,true); let ok=0, done=0; try{ for(const [i,id] of ids.entries()){ if(this.stopRequested) break; this.results.set(id,{status:'running'}); this._showResult(`正在测试 ${id}（${i+1}/${ids.length}）…`,true); this.render(); const t0=performance.now(); try{ const r=await fetch(this.testEndpoint,{method:'POST',headers:apiHeaders({'Content-Type':'application/json'}),body:JSON.stringify({model:id,prompt})}); const raw=await r.text(); const el=(performance.now()-t0)/1000; let p; try{p=JSON.parse(raw);}catch{p=raw;} if(!r.ok){ this.results.set(id,{status:'failed',elapsed:el,error:failureMessage(r.status,p,r.headers)}); }else{ this.results.set(id,{status:'success',elapsed:el,answer:p.choices?.[0]?.message?.content||JSON.stringify(p,null,2)}); ok++; } }catch(e){ this.results.set(id,{status:'failed',elapsed:(performance.now()-t0)/1000,error:`本机连接失败：${e.message}\n建议：确认网关仍在运行，浏览器打开的是 http://127.0.0.1:8899/；若刚设置 LOCAL_KEY，请重新填写并保存。`}); } done++; this.render(); } }finally{ if(this.stopRequested) ids.forEach(id=>{ if(this.results.get(id)?.status==='queued') this.results.set(id,{status:'stopped'}); }); this.testing=false; this.stopRequested=false; this.updateControls(); this.render(); const all=ok===ids.length; const msg=this.stopRequested?`已停止：完成 ${done}/${ids.length} 个模型，其中 ${ok} 个成功。`:`测试完成：${ok}/${ids.length} 个模型成功。`; this._showResult(`${msg} 各模型的回复或错误显示在对应卡片中。`,!this.stopRequested&&all); } }
+        this.testing=true; this.stopRequested=false; ids.forEach(id=>this.results.set(id,{status:'queued'})); this.updateControls(); this.render(); this._showResult(`准备按顺序测试 ${ids.length} 个 ${this.providerName} 模型…`,true); let ok=0, done=0; try{ for(const [i,id] of ids.entries()){ if(this.stopRequested) break; this.results.set(id,{status:'running'}); this._showResult(`正在测试 ${id}（${i+1}/${ids.length}）…`,true); this.render(); const t0=performance.now(); try{ const r=await fetch(this.testEndpoint,{method:'POST',headers:apiHeaders({'Content-Type':'application/json'}),body:JSON.stringify({model:id,prompt})}); const raw=await r.text(); const el=(performance.now()-t0)/1000; let p; try{p=JSON.parse(raw);}catch{p=raw;} if(!r.ok){ this.results.set(id,{status:'failed',elapsed:el,error:failureMessage(r.status,p,r.headers)}); }else{ this.results.set(id,{status:'success',elapsed:el,answer:p.choices?.[0]?.message?.content||JSON.stringify(p,null,2)}); recordOnboardingTest(this.providerId, id); ok++; } }catch(e){ this.results.set(id,{status:'failed',elapsed:(performance.now()-t0)/1000,error:`本机连接失败：${e.message}\n建议：确认网关仍在运行，浏览器打开的是 http://127.0.0.1:8899/；若刚设置 LOCAL_KEY，请重新填写并保存。`}); } done++; this.render(); } }finally{ if(this.stopRequested) ids.forEach(id=>{ if(this.results.get(id)?.status==='queued') this.results.set(id,{status:'stopped'}); }); this.testing=false; this.stopRequested=false; this.updateControls(); this.render(); const all=ok===ids.length; const msg=this.stopRequested?`已停止：完成 ${done}/${ids.length} 个模型，其中 ${ok} 个成功。`:`测试完成：${ok}/${ids.length} 个模型成功。`; this._showResult(`${msg} 各模型的回复或错误显示在对应卡片中。`,!this.stopRequested&&all); } }
       stop() { if(!this.testing||this.stopRequested) return; this.stopRequested=true; this.updateControls(); this._showResult('已请求停止。当前模型的请求结束后，将不会继续请求后续模型。',true); }
 
       updatePromptPreview() { const note=$('#dock-prompt-preview'); if(!note) return; const prompt=$(this.sels.testPrompt).value.trim().replace(/\s+/g,' '); note.textContent=prompt?`测试提示词：${prompt.slice(0,100)}${prompt.length>100?'…':''}`:'测试提示词为空；开始前可编辑。'; }
@@ -166,7 +166,7 @@
         selectVisibleBtn: '#select-visible-button', selectedOnlyBtn: '#selected-only-button',
         selectionStatus: '#selection-status',
       },
-      catalogEndpoint: '/api/catalog', testEndpoint: '/api/test', providerName: 'Kilo',
+      catalogEndpoint: '/api/catalog', testEndpoint: '/api/test', providerName: 'Kilo', providerId: 'kilo',
       extraFilter: () => true,
       renderExtraBadges: m => { const b=document.createElement('span'); b.className=`badge ${m.isFree===true?'free':m.isFree===false?'':'unknown'}`; b.textContent=m.isFree===true?'上游标记免费':m.isFree===false?'非免费':'免费状态未知'; return [b]; },
       renderExtraMeta: (card,m) => { /* Kilo 无额外元数据 */ }
@@ -181,7 +181,7 @@
         selectVisibleBtn: '#sensenova-select-visible-button', selectedOnlyBtn: '#sensenova-selected-only-button',
         selectionStatus: '#sensenova-selection-status',
       },
-      catalogEndpoint: '/api/sensenova/catalog', testEndpoint: '/api/sensenova/test', providerName: 'SenseNova',
+      catalogEndpoint: '/api/sensenova/catalog', testEndpoint: '/api/sensenova/test', providerName: 'SenseNova', providerId: 'sensenova',
       extraFilter: () => true,
       renderExtraBadges: () => [],
       renderExtraMeta: (card,m) => { /* SenseNova 无额外元数据 */ }
@@ -196,7 +196,7 @@
         selectVisibleBtn: '#internlm-select-visible-button', selectedOnlyBtn: '#internlm-selected-only-button',
         selectionStatus: '#internlm-selection-status',
       },
-      catalogEndpoint: '/api/internlm/catalog', testEndpoint: '/api/internlm/test', providerName: 'InternLM',
+      catalogEndpoint: '/api/internlm/catalog', testEndpoint: '/api/internlm/test', providerName: 'InternLM', providerId: 'internlm',
       extraFilter: () => true,
       renderExtraBadges: () => [],
       renderExtraMeta: (card,m) => { /* InternLM 无额外元数据 */ }
@@ -211,7 +211,7 @@
         selectVisibleBtn: '#scnet-select-visible-button', selectedOnlyBtn: '#scnet-selected-only-button',
         selectionStatus: '#scnet-selection-status',
       },
-      catalogEndpoint: '/api/scnet/catalog', testEndpoint: '/api/scnet/test', providerName: 'SCNet',
+      catalogEndpoint: '/api/scnet/catalog', testEndpoint: '/api/scnet/test', providerName: 'SCNet', providerId: 'scnet',
       extraFilter: () => true,
       renderExtraBadges: () => [],
       renderExtraMeta: (card,m) => { /* SCNet 无额外元数据 */ }
@@ -226,7 +226,7 @@
         selectVisibleBtn: '#custom-provider-select-visible-button', selectedOnlyBtn: '#custom-provider-selected-only-button',
         selectionStatus: '#custom-provider-selection-status',
       },
-      catalogEndpoint: '', testEndpoint: '', providerName: '自定义服务商',
+      catalogEndpoint: '', testEndpoint: '', providerName: '自定义服务商', providerId: '',
       extraFilter: () => true,
       renderExtraBadges: () => [],
       renderExtraMeta: () => {},
@@ -273,6 +273,142 @@
       key: sessionStorage.getItem('gateway-local-key')||'',
     };
     $('#local-key').value = state.key;
+
+    const ONBOARDING_STORAGE_KEY = 'gateway-first-use-v1';
+    const SETUP_PROFILES_STORAGE_KEY = 'gateway-setup-profiles-v1';
+    const EMPTY_ONBOARDING = {
+      providerId: '',
+      modelId: '',
+      clientId: '',
+      tested: false,
+      configured: false,
+      verified: false,
+    };
+
+    function readLocalJson(key, fallback) {
+      try {
+        const value = localStorage.getItem(key);
+        return value ? JSON.parse(value) : fallback;
+      } catch (error) {
+        console.warn(`Could not read ${key}:`, error);
+        return fallback;
+      }
+    }
+
+    const storedOnboarding = readLocalJson(ONBOARDING_STORAGE_KEY, {});
+    let onboarding = {
+      providerId: typeof storedOnboarding?.providerId === 'string' ? storedOnboarding.providerId : '',
+      modelId: typeof storedOnboarding?.modelId === 'string' ? storedOnboarding.modelId : '',
+      clientId: typeof storedOnboarding?.clientId === 'string' ? storedOnboarding.clientId : '',
+      tested: storedOnboarding?.tested === true,
+      configured: storedOnboarding?.configured === true,
+      verified: storedOnboarding?.verified === true,
+    };
+    let setupProfiles = readLocalJson(SETUP_PROFILES_STORAGE_KEY, []);
+    if (!Array.isArray(setupProfiles)) setupProfiles = [];
+    setupProfiles = setupProfiles
+      .filter((profile) => profile && typeof profile.name === 'string'
+        && typeof profile.providerId === 'string'
+        && typeof profile.modelId === 'string'
+        && typeof profile.clientId === 'string')
+      .map(({ id, name, providerId, modelId, clientId }) => ({
+        id: typeof id === 'string' ? id : `${Date.now()}-${Math.random()}`,
+        name: name.slice(0, 48),
+        providerId: providerId.slice(0, 128),
+        modelId: modelId.slice(0, 512),
+        clientId: clientId.slice(0, 128),
+      })).slice(0, 20);
+    let setupModelProvider = '';
+    let applyConfirmation = null;
+
+    function persistOnboarding() {
+      try {
+        localStorage.setItem(ONBOARDING_STORAGE_KEY, JSON.stringify(onboarding));
+      } catch (error) {
+        console.warn('Could not save first-use progress:', error);
+      }
+      renderOnboarding();
+    }
+
+    function recordOnboardingProvider(providerId) {
+      if (!providerId || onboarding.providerId === providerId) return;
+      onboarding = { ...EMPTY_ONBOARDING, providerId };
+      persistOnboarding();
+    }
+
+    function recordOnboardingModel(providerId, modelId) {
+      if (!providerId || !modelId) return;
+      if (onboarding.providerId !== providerId || onboarding.modelId !== modelId) {
+        onboarding = {
+          ...EMPTY_ONBOARDING,
+          providerId,
+          modelId,
+        };
+        persistOnboarding();
+      }
+    }
+
+    function recordOnboardingTest(providerId, modelId) {
+      recordOnboardingModel(providerId, modelId);
+      onboarding.tested = true;
+      persistOnboarding();
+    }
+
+    function recordOnboardingConfigured(clientId) {
+      onboarding.clientId = clientId;
+      onboarding.configured = true;
+      onboarding.verified = false;
+      persistOnboarding();
+    }
+
+    function renderOnboarding() {
+      const steps = [
+        Boolean(onboarding.providerId),
+        Boolean(onboarding.tested),
+        Boolean(onboarding.configured),
+        Boolean(onboarding.verified),
+      ];
+      const completed = steps.filter(Boolean).length;
+      $('#quick-start-progress').textContent = `${completed} / ${steps.length}`;
+      document.querySelectorAll('[data-onboarding-step]').forEach((item, index) => {
+        item.classList.toggle('completed', steps[index]);
+        item.removeAttribute('aria-current');
+        if (completed < steps.length && index === steps.findIndex((step) => !step)) {
+          item.setAttribute('aria-current', 'step');
+        }
+      });
+
+      const descriptions = [
+        '先选择一个模型服务商；可从无需单独申请 Key 的 Kilo 开始。',
+        '加载目录后，选一个模型并手动测试；提示词会发送到所选上游。',
+        '选择 Claude Code、Cline 或 Continue，复制配置或确认应用。',
+        '在客户端发起一条请求，确认能收到模型回复。',
+      ];
+      const labels = ['选择服务商', '浏览模型并测试', '继续配置客户端', '我已验证成功'];
+      const next = $('#quick-start-next');
+      const activeIndex = steps.findIndex((step) => !step);
+      $('#quick-start-description').textContent = completed === steps.length
+        ? '首次接入已完成；你可以继续选择其他模型或保存配置方案。'
+        : descriptions[activeIndex];
+      $('#quick-start-status').textContent = onboarding.modelId
+        ? `当前选择：${onboarding.modelId}${onboarding.clientId ? ` · ${onboarding.clientId}` : ''}`
+        : onboarding.providerId
+          ? `已选择服务商：${providerLabel(onboarding.providerId)}`
+          : '进度只保存在当前浏览器，不包含密钥。';
+      next.textContent = activeIndex < 0 ? '再次浏览模型' : labels[activeIndex];
+      next.dataset.step = String(activeIndex < 0 ? 1 : activeIndex);
+    }
+
+    function providerLabel(providerId) {
+      const labels = {
+        kilo: 'Kilo',
+        sensenova: 'SenseNova',
+        internlm: 'InternLM',
+        scnet: 'SCNet',
+        custom: '自定义服务商',
+      };
+      return labels[providerId] || (providerId.startsWith('custom-') ? '自定义服务商' : providerId);
+    }
 
     function updateThemeToggle() {
       const nextTheme = state.theme === 'light' ? '暗色' : '亮色';
@@ -441,6 +577,7 @@
     function openCustomProvider(id) {
       const provider = state.vault?.providers?.find((item) => item.id === id && item.custom);
       if (!provider || !state.vault?.unlocked) return;
+      recordOnboardingProvider(id);
       currentCustomProviderId = id;
       customProviderCatalog.providerName = provider.name;
       customProviderCatalog.catalogEndpoint = `/api/custom-providers/${encodeURIComponent(id)}/catalog`;
@@ -454,7 +591,7 @@
       $('#custom-provider-page-description').textContent = `${provider.baseUrl} · OpenAI Chat Completions 兼容接口`;
       $('#delete-custom-provider').dataset.providerId = id;
       showView('custom-provider');
-      customProviderCatalog.load();
+      return customProviderCatalog.load();
     }
 
     function renderVaultStatus() {
@@ -599,9 +736,15 @@
       $('#sensenova-provider-status').textContent = '';
     }
 
-    $('#open-kilo').addEventListener('click', () => showView('kilo'));
+    $('#open-kilo').addEventListener('click', () => {
+      recordOnboardingProvider('kilo');
+      showView('kilo');
+    });
     $('#open-providers').addEventListener('click', () => showView('vault'));
-    $('#open-custom-providers').addEventListener('click', () => showView('vault'));
+    $('#open-custom-providers').addEventListener('click', () => {
+      recordOnboardingProvider('custom');
+      showView('vault');
+    });
     $('#home-button').addEventListener('click', () => showView('home'));
     $('#vault-unlock-button').addEventListener('click', async () => {
       const password = $('#vault-password').value;
@@ -1111,6 +1254,7 @@
       '配置切换器': ['cc-switch-claude', 'cc-switch-codex'],
       '其他': ['openai-compatible'],
     };
+    const SETUP_RECOMMENDED_CLIENTS = ['claude-code', 'cline', 'continue-json'];
     const SETUP_CLIENT_META = {
       'claude-code': { icon: 'CC', description: '通过 Anthropic Messages 接口连接 Claude Code。', protocol: 'Anthropic' },
       cline: { icon: 'CL', description: '在 Cline 的自定义提供方表单中填写 OpenAI 兼容接口。', protocol: 'OpenAI 兼容' },
@@ -1133,44 +1277,71 @@
       'openai-compatible': { icon: 'API', description: '用于支持 OpenAI 兼容接口的其他客户端。', protocol: 'OpenAI 兼容' },
     };
 
+    function recommendedClientIds(providerId = setupModelProvider) {
+      return providerId.startsWith('custom-')
+        ? ['cline', 'continue-json', 'chatbox']
+        : SETUP_RECOMMENDED_CLIENTS;
+    }
+
+    function createSetupClientButton(option) {
+      const meta = SETUP_CLIENT_META[option.value];
+      const button = document.createElement('button');
+      button.className = 'setup-client-option';
+      button.type = 'button';
+      button.dataset.client = option.value;
+      button.setAttribute('aria-current', String(option.value === $('#setup-client').value));
+      button.setAttribute('aria-label', option.textContent);
+      const icon = document.createElement('span');
+      icon.className = 'setup-client-icon';
+      icon.setAttribute('aria-hidden', 'true');
+      icon.textContent = meta.icon;
+      const name = document.createElement('span');
+      name.className = 'setup-client-name';
+      name.textContent = option.textContent;
+      button.append(icon, name);
+      button.addEventListener('click', () => {
+        $('#setup-client').value = option.value;
+        $('#setup-client').dispatchEvent(new Event('change'));
+      });
+      return button;
+    }
+
     function renderSetupClients() {
       const list = $('#setup-client-list');
+      const recommendedList = $('#setup-recommended-client-list');
+      const allClients = $('#setup-all-clients');
       const selected = $('#setup-client').value;
       const query = $('#setup-client-search').value.trim().toLowerCase();
+      const options = [...$('#setup-client').options].filter((option) => (
+        !setupModelProvider.startsWith('custom-')
+        || !['claude-code', 'cc-switch-claude'].includes(option.value)
+      ));
+      const recommended = recommendedClientIds();
+      const matches = (option) => option.textContent.toLowerCase().includes(query);
+      const showAllResults = Boolean(query);
       list.replaceChildren();
+      recommendedList.replaceChildren();
+      recommendedList.hidden = showAllResults;
+      for (const id of recommended) {
+        const option = options.find((item) => item.value === id);
+        if (option) recommendedList.append(createSetupClientButton(option));
+      }
+
+      const remaining = options.filter((option) => (
+        (showAllResults || !recommended.includes(option.value)) && matches(option)
+      ));
       for (const [group, clientIds] of Object.entries(SETUP_CLIENT_GROUPS)) {
-        const options = clientIds
-          .map((id) => $('#setup-client').querySelector(`option[value="${id}"]`))
-          .filter((option) => option && option.textContent.toLowerCase().includes(query));
-        if (!options.length) continue;
+        const groupOptions = clientIds
+          .map((id) => remaining.find((option) => option.value === id))
+          .filter(Boolean);
+        if (!groupOptions.length) continue;
         const section = document.createElement('section');
         section.className = 'setup-client-group';
         const heading = document.createElement('h4');
         heading.className = 'setup-client-group-title';
         heading.textContent = group;
         section.append(heading);
-        for (const option of options) {
-          const meta = SETUP_CLIENT_META[option.value];
-          const button = document.createElement('button');
-          button.className = 'setup-client-option';
-          button.type = 'button';
-          button.dataset.client = option.value;
-          button.setAttribute('aria-current', String(option.value === selected));
-          button.setAttribute('aria-label', option.textContent);
-          const icon = document.createElement('span');
-          icon.className = 'setup-client-icon';
-          icon.setAttribute('aria-hidden', 'true');
-          icon.textContent = meta.icon;
-          const name = document.createElement('span');
-          name.className = 'setup-client-name';
-          name.textContent = option.textContent;
-          button.append(icon, name);
-          button.addEventListener('click', () => {
-            $('#setup-client').value = option.value;
-            $('#setup-client').dispatchEvent(new Event('change'));
-          });
-          section.append(button);
-        }
+        for (const option of groupOptions) section.append(createSetupClientButton(option));
         list.append(section);
       }
       if (!list.childElementCount) {
@@ -1179,7 +1350,9 @@
         empty.textContent = '没有匹配的客户端';
         list.append(empty);
       }
+      allClients.open = showAllResults || !recommended.includes(selected);
       list.querySelector('.setup-client-option[aria-current="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      recommendedList.querySelector('.setup-client-option[aria-current="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
 
     function shellQuote(value, shell) {
@@ -1283,6 +1456,7 @@
       const option = $('#setup-client').selectedOptions[0];
       const meta = SETUP_CLIENT_META[client] || SETUP_CLIENT_META['openai-compatible'];
       $('#setup-base-url').value ||= setupBaseUrl(client);
+      $('#setup-apply').hidden = client !== 'claude-code' || setupModelProvider.startsWith('custom-');
       const instructions = {
         'claude-code': '在 Claude Code 所在的终端运行预览中的命令；环境变量只对当前终端会话生效。Base URL 不带 /v1，Claude Code 会请求 Anthropic Messages 接口。',
         cline: '打开 Cline 的 API 配置，选择 OpenAI Compatible，将下方 Base URL、API Key 和 Model ID 填入对应字段。Base URL 带 /v1。',
@@ -1313,6 +1487,111 @@
       $('#setup-preview').value = setupConfiguration({ maskKey: true });
       $('#setup-status').textContent = '';
       renderSetupClients();
+    }
+
+    function providerNameForId(providerId) {
+      if (providerId === 'kilo') return 'Kilo';
+      if (providerId === 'sensenova') return 'SenseNova';
+      if (providerId === 'internlm') return 'InternLM';
+      if (providerId === 'scnet') return 'SCNet';
+      if (providerId === 'custom') return '自定义服务商';
+      return state.vault?.providers?.find((provider) => provider.id === providerId)?.name || '自定义服务商';
+    }
+
+    function renderSetupProfiles() {
+      const list = $('#setup-profile-list');
+      list.replaceChildren();
+      $('#setup-profile-count').textContent = String(setupProfiles.length);
+      if (!setupProfiles.length) {
+        const empty = document.createElement('p');
+        empty.className = 'muted';
+        empty.textContent = '还没有保存的方案。方案只包含客户端、服务商和模型，不保存 Key 或口令。';
+        list.append(empty);
+        return;
+      }
+
+      for (const profile of setupProfiles) {
+        const item = document.createElement('div');
+        item.className = 'setup-profile-item';
+        const details = document.createElement('div');
+        details.className = 'setup-profile-details';
+        const name = document.createElement('strong');
+        name.textContent = profile.name;
+        const description = document.createElement('span');
+        description.textContent = `${SETUP_CLIENT_META[profile.clientId]?.name || profile.clientId} · ${providerNameForId(profile.providerId)} · ${profile.modelId}`;
+        details.append(name, description);
+        const actions = document.createElement('div');
+        actions.className = 'setup-profile-actions';
+        const load = document.createElement('button');
+        load.type = 'button';
+        load.textContent = '载入';
+        load.addEventListener('click', () => loadSetupProfile(profile.id));
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.textContent = '删除';
+        remove.setAttribute('aria-label', `删除方案：${profile.name}`);
+        remove.addEventListener('click', () => deleteSetupProfile(profile.id));
+        actions.append(load, remove);
+        item.append(details, actions);
+        list.append(item);
+      }
+    }
+
+    function saveCurrentSetupProfile() {
+      const name = $('#setup-profile-name').value.trim();
+      const modelId = $('#setup-model-id').value.trim();
+      if (!name || !modelId) {
+        $('#setup-profile-status').textContent = '请填写方案名称并先选择一个模型。';
+        return;
+      }
+      const providerId = setupModelProvider || 'kilo';
+      const entry = {
+        id: `profile-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        name,
+        clientId: $('#setup-client').value,
+        providerId,
+        modelId,
+      };
+      const nextProfiles = [entry, ...setupProfiles.filter((profile) => profile.name !== name)].slice(0, 20);
+      try {
+        localStorage.setItem(SETUP_PROFILES_STORAGE_KEY, JSON.stringify(nextProfiles));
+        setupProfiles = nextProfiles;
+        $('#setup-profile-name').value = '';
+        $('#setup-profile-status').textContent = '方案已保存在此浏览器中；不会保存或自动载入任何 Key/口令。';
+        renderSetupProfiles();
+      } catch (error) {
+        $('#setup-profile-status').textContent = `保存失败：${error.message || '浏览器无法写入本地存储'}`;
+      }
+    }
+
+    function loadSetupProfile(profile) {
+      const option = [...$('#setup-client').options].find((item) => item.value === profile.clientId);
+      if (!option) {
+        $('#setup-profile-status').textContent = '这个客户端已不在当前版本中，无法载入方案。';
+        return;
+      }
+      setupModelProvider = profile.providerId;
+      $('#setup-client').value = profile.clientId;
+      $('#setup-model-id').value = profile.modelId;
+      $('#setup-model-label').textContent = `当前模型：${profile.modelId}`;
+      $('#setup-base-url').value = setupBaseUrl(profile.clientId);
+      $('#setup-api-key').value = state.key || 'dummy';
+      $('#setup-api-key').readOnly = false;
+      recordOnboardingModel(profile.providerId, profile.modelId);
+      updateSetupDialog();
+      $('#setup-profile-status').textContent = '方案已载入。请核对模型与地址，并手动输入当前需要的 API Key/口令。';
+    }
+
+    function deleteSetupProfile(profileId) {
+      const nextProfiles = setupProfiles.filter((profile) => profile.id !== profileId);
+      try {
+        localStorage.setItem(SETUP_PROFILES_STORAGE_KEY, JSON.stringify(nextProfiles));
+        setupProfiles = nextProfiles;
+        $('#setup-profile-status').textContent = '方案已删除。';
+        renderSetupProfiles();
+      } catch (error) {
+        $('#setup-profile-status').textContent = `删除失败：${error.message || '浏览器无法写入本地存储'}`;
+      }
     }
 
     // Ctrl+A 全选 - 使用当前活动的 catalog
@@ -1380,21 +1659,15 @@
     let setupDialogTrigger = null;
     function openSetupDialog(model, provider) {
       setupDialogTrigger = document.activeElement; // Save element that opened dialog
+      setupModelProvider = provider || 'kilo';
       const clientModelId = modelIdForClient(model);
       $('#setup-model-label').textContent = `当前模型：${clientModelId}`;
       $('#setup-model-id').value = clientModelId;
-      // 预填 Base URL 和 API Key 根据上游来源
-      if (['sensenova', 'internlm', 'scnet'].includes(provider)) {
-        $('#setup-base-url').value = setupBaseUrl('claude-code');
-        $('#setup-api-key').value = state.key || 'dummy';
-        $('#setup-api-key').readOnly = false;
-      } else {
-        // Kilo / 其他
-        $('#setup-base-url').value = setupBaseUrl('claude-code');
-        $('#setup-api-key').value = state.key || 'dummy';
-        $('#setup-api-key').readOnly = false;
-      }
-      $('#setup-client').value = 'claude-code';
+      $('#setup-client').value = recommendedClientIds(setupModelProvider)[0];
+      $('#setup-base-url').value = setupBaseUrl($('#setup-client').value);
+      $('#setup-api-key').value = state.key || 'dummy';
+      $('#setup-api-key').readOnly = false;
+      recordOnboardingModel(setupModelProvider, model.id);
       updateSetupDialog();
       $('#setup-dialog').showModal();
       // Focus first focusable element in dialog
@@ -1472,9 +1745,155 @@
       try {
         await navigator.clipboard.writeText(setupConfiguration());
         status.textContent = '配置已复制。请粘贴到对应客户端；包含口令时注意不要分享。';
+        recordOnboardingConfigured($('#setup-client').value);
       } catch (error) {
         status.textContent = `复制失败：${error.message || '浏览器不允许访问剪贴板'}。请手动复制上方预览。`;
       }
+    });
+    $('#save-setup-profile').addEventListener('click', saveCurrentSetupProfile);
+    $('#setup-apply').addEventListener('click', async () => {
+      const status = $('#setup-status');
+      const button = $('#setup-apply');
+      button.disabled = true;
+      status.textContent = '正在读取 Claude Code 当前配置…';
+      try {
+        const response = await fetch('/api/client-config/claude-code', { headers: apiHeaders() });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error?.message || `读取配置失败（HTTP ${response.status}）`);
+        if (!result.valid) throw new Error('现有 settings.json 不是有效 JSON；为避免覆盖，未继续应用。');
+        applyConfirmation = result;
+        $('#apply-config-path').textContent = result.path;
+        const apiKey = $('#setup-api-key').value || 'dummy';
+        $('#apply-config-values').textContent = [
+          `ANTHROPIC_BASE_URL：${setupBaseUrl('claude-code')}`,
+          `ANTHROPIC_AUTH_TOKEN：${apiKey === 'dummy' ? 'dummy（占位值）' : '已填写（此处隐藏）'}`,
+          `ANTHROPIC_MODEL：${$('#setup-model-id').value}`,
+        ].join('\n');
+        $('#apply-config-backup-note').textContent = result.exists
+          ? '确认后将先备份现有文件，再更新配置。'
+          : '文件尚不存在；确认后将创建配置文件（没有现有文件可备份）。';
+        $('#apply-config-status').textContent = '';
+        $('#apply-confirm-dialog').showModal();
+        status.textContent = '';
+      } catch (error) {
+        status.textContent = error.message || '读取 Claude Code 配置失败。';
+      } finally {
+        button.disabled = false;
+      }
+    });
+    $('#cancel-apply-config').addEventListener('click', () => $('#apply-confirm-dialog').close());
+    $('#apply-confirm-dialog').addEventListener('close', () => {
+      applyConfirmation = null;
+      $('#confirm-apply-config').disabled = false;
+    });
+    $('#confirm-apply-config').addEventListener('click', async () => {
+      if (!applyConfirmation?.valid) return;
+      const button = $('#confirm-apply-config');
+      const status = $('#apply-config-status');
+      button.disabled = true;
+      status.textContent = '正在备份并更新 Claude Code 配置…';
+      try {
+        const response = await fetch('/api/client-config/claude-code/apply', {
+          method: 'POST',
+          headers: apiHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({
+            confirmed: true,
+            baseUrl: setupBaseUrl('claude-code'),
+            apiKey: $('#setup-api-key').value || 'dummy',
+            model: $('#setup-model-id').value,
+          }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error?.message || `应用失败（HTTP ${response.status}）`);
+        recordOnboardingConfigured('claude-code');
+        $('#setup-status').textContent = result.backupPath
+          ? `配置已应用。原配置备份至：${result.backupPath}`
+          : '配置已应用；Claude Code 下次启动时生效。';
+        $('#apply-confirm-dialog').close();
+      } catch (error) {
+        status.textContent = error.message || '应用 Claude Code 配置失败。';
+        button.disabled = false;
+      }
+    });
+
+    function catalogForProvider(providerId) {
+      if (providerId === 'kilo') return kiloCatalog;
+      if (providerId === 'sensenova') return sensenovaCatalog;
+      if (providerId === 'internlm') return internlmCatalog;
+      if (providerId === 'scnet') return scnetCatalog;
+      if (providerId.startsWith('custom-')) return customProviderCatalog;
+      return null;
+    }
+
+    async function showOnboardingProvider(providerId) {
+      const views = {
+        kilo: 'kilo',
+        sensenova: 'sensenova',
+        internlm: 'internlm',
+        scnet: 'scnet',
+      };
+      if (providerId.startsWith('custom-')) {
+        await loadVaultStatus();
+        const provider = state.vault?.providers?.find((item) => item.id === providerId);
+        if (!state.vault?.unlocked || !provider?.configured) {
+          showView('vault');
+          $('#quick-start-status').textContent = '请先解锁凭据库并配置此自定义服务商。';
+          return null;
+        }
+        await openCustomProvider(providerId);
+        return customProviderCatalog;
+      }
+      const view = views[providerId];
+      if (!view) {
+        showView('vault');
+        $('#quick-start-status').textContent = '请在凭据管理中选择或添加一个服务商。';
+        return null;
+      }
+      if (['sensenova', 'internlm', 'scnet'].includes(providerId)) {
+        await loadVaultStatus();
+        const provider = state.vault?.providers?.find((item) => item.id === providerId);
+        if (!state.vault?.unlocked || !provider?.configured) {
+          showView(view);
+          $('#quick-start-status').textContent = `请先在本机凭据库中解锁并配置 ${providerLabel(providerId)} Key。`;
+          return null;
+        }
+      }
+      showView(view);
+      const catalog = catalogForProvider(providerId);
+      if (catalog && providerId !== 'kilo' && !catalog.loaded) await catalog.load();
+      return catalog;
+    }
+
+    $('#quick-start-next').addEventListener('click', async () => {
+      const step = Number($('#quick-start-next').dataset.step);
+      if (step === 1) {
+        if (!onboarding.providerId) {
+          recordOnboardingProvider('kilo');
+          showView('kilo');
+        } else {
+          await showOnboardingProvider(onboarding.providerId);
+        }
+        return;
+      }
+      if (step === 2) {
+        await showOnboardingProvider(onboarding.providerId);
+        $('#quick-start-status').textContent = '请选择一个模型并执行一次测试；测试成功后即可继续配置。';
+        return;
+      }
+      if (step === 3) {
+        const catalog = await showOnboardingProvider(onboarding.providerId);
+        const model = catalog?.models.find((item) => item.id === onboarding.modelId);
+        if (model) openSetupDialog(model, onboarding.providerId);
+        else $('#quick-start-status').textContent = '暂时找不到已测试的模型；请返回目录确认模型仍可用后再选择。';
+        return;
+      }
+      if (step === 4) {
+        onboarding.verified = true;
+        persistOnboarding();
+        return;
+      }
+      recordOnboardingProvider('kilo');
+      showView('kilo');
     });
 
     // Show each provider's model catalog only when its key is available in the unlocked vault.
@@ -1498,9 +1917,18 @@
       checkAndShowProviderSections();
     };
 
-    $('#open-sensenova').addEventListener('click', () => showView('sensenova'));
-    $('#open-internlm').addEventListener('click', () => showView('internlm'));
-    $('#open-scnet').addEventListener('click', () => showView('scnet'));
+    $('#open-sensenova').addEventListener('click', () => {
+      recordOnboardingProvider('sensenova');
+      showView('sensenova');
+    });
+    $('#open-internlm').addEventListener('click', () => {
+      recordOnboardingProvider('internlm');
+      showView('internlm');
+    });
+    $('#open-scnet').addEventListener('click', () => {
+      recordOnboardingProvider('scnet');
+      showView('scnet');
+    });
     $('#vault-open-sensenova').addEventListener('click', () => showView('sensenova'));
     $('#vault-open-internlm').addEventListener('click', () => showView('internlm'));
     $('#vault-open-scnet').addEventListener('click', () => showView('scnet'));
@@ -1511,4 +1939,6 @@
     checkAndShowProviderSections();
 
     showView('home');
+    renderOnboarding();
+    renderSetupProfiles();
     loadVaultStatus();

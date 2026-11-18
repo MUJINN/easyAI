@@ -36,7 +36,26 @@
         <h2 id="home-title">从选择模型服务开始</h2>
         <p>可以直接体验 Kilo 提供的免 Key 模型，也可以接入你自己申请了 API Key 的模型服务。服务在本机运行，你决定使用哪家服务以及把请求发送到哪里。</p>
       </div>
-      <div class="entry-grid">
+      <section id="quick-start" class="quick-start" aria-labelledby="quick-start-title">
+        <div class="quick-start-heading">
+          <div>
+            <h3 id="quick-start-title">快速完成首次接入</h3>
+            <p id="quick-start-description">按步骤选择服务商、测试模型并配置客户端。</p>
+          </div>
+          <span id="quick-start-progress" class="quick-start-progress" role="status">0 / 4</span>
+        </div>
+        <ol class="quick-start-steps" aria-label="首次接入步骤">
+          <li data-onboarding-step="provider"><span>1</span>选择服务商</li>
+          <li data-onboarding-step="test"><span>2</span>选择模型并测试</li>
+          <li data-onboarding-step="configure"><span>3</span>配置客户端</li>
+          <li data-onboarding-step="verify"><span>4</span>验证客户端</li>
+        </ol>
+        <div class="quick-start-actions">
+          <p id="quick-start-status" role="status" aria-live="polite"></p>
+          <button id="quick-start-next" class="primary" type="button">选择服务商</button>
+        </div>
+      </section>
+      <div id="provider-entry-grid" class="entry-grid">
         <article class="entry-card featured">
           <div class="entry-card-top">
             <div class="entry-mark" aria-hidden="true">K</div>
@@ -504,9 +523,22 @@
     </div>
     <div class="setup-layout">
       <aside class="setup-sidebar" aria-label="选择客户端">
-        <div class="setup-sidebar-heading">选择客户端 <span class="setup-count">18 种</span></div>
-        <input id="setup-client-search" class="setup-search" type="search" placeholder="搜索客户端…" aria-label="搜索客户端">
-        <nav id="setup-client-list" class="setup-client-list" aria-label="客户端列表"></nav>
+        <div class="setup-sidebar-heading">推荐客户端</div>
+        <nav id="setup-recommended-client-list" class="setup-client-list" aria-label="推荐客户端"></nav>
+        <details id="setup-all-clients" class="setup-all-clients">
+          <summary>展开全部客户端</summary>
+          <input id="setup-client-search" class="setup-search" type="search" placeholder="搜索客户端…" aria-label="搜索全部客户端">
+          <nav id="setup-client-list" class="setup-client-list" aria-label="全部客户端"></nav>
+        </details>
+        <details id="setup-profiles" class="setup-profiles">
+          <summary>已保存方案 <span id="setup-profile-count" class="setup-count">0</span></summary>
+          <div id="setup-profile-list" class="setup-profile-list"></div>
+          <label for="setup-profile-name">方案名称</label>
+          <input id="setup-profile-name" type="text" maxlength="48" placeholder="例如：日常编程">
+          <button id="save-setup-profile" type="button">保存当前选择</button>
+          <p>仅保存在此浏览器，不保存 API Key 或访问口令。</p>
+          <span id="setup-profile-status" class="setup-status" role="status" aria-live="polite"></span>
+        </details>
         <select id="setup-client" class="visually-hidden" tabindex="-1" aria-hidden="true">
           <option value="claude-code">Claude Code（Anthropic Messages）</option>
           <option value="cline">Cline（OpenAI 兼容表单）</option>
@@ -592,10 +624,31 @@
           </div>
           <div class="setup-footer-actions">
             <span id="setup-status" class="setup-status" role="status" aria-live="polite"></span>
+            <button id="setup-apply" type="button" hidden>应用到 Claude Code</button>
             <button id="setup-copy" class="primary" type="button">复制配置</button>
           </div>
         </div>
       </main>
+    </div>
+  </dialog>
+  <dialog id="apply-confirm-dialog" class="apply-confirm-dialog" aria-labelledby="apply-confirm-title">
+    <div class="apply-confirm-content">
+      <h2 id="apply-confirm-title">确认应用到 Claude Code</h2>
+      <p>将更新 Claude Code 的三个环境变量；其他设置会保留。现有文件会先创建备份。</p>
+      <dl>
+        <dt>配置文件</dt>
+        <dd id="apply-config-path"></dd>
+        <dt>将写入</dt>
+        <dd id="apply-config-values"></dd>
+        <dt>现有文件</dt>
+        <dd id="apply-config-backup-note"></dd>
+      </dl>
+      <p class="apply-confirm-warning">配置中包含本机访问口令。请确认路径和模型无误；应用后下次启动 Claude Code 生效。</p>
+      <div class="apply-confirm-actions">
+        <button id="cancel-apply-config" type="button">返回检查</button>
+        <button id="confirm-apply-config" class="primary" type="button">确认、备份并应用</button>
+      </div>
+      <span id="apply-config-status" class="setup-status" role="status" aria-live="polite"></span>
     </div>
   </dialog>
   <aside id="selection-dock" class="selection-dock" aria-label="批量测试操作">

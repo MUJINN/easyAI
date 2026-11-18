@@ -28,6 +28,7 @@ test('serves local dashboard, enforces auth, and validates manual tests', async 
   const baseUrl = `http://127.0.0.1:${port}`;
   const vaultDir = await fs.mkdtemp(path.join(os.tmpdir(), 'kilo-gateway-vault-test-'));
   const vaultPath = path.join(vaultDir, 'vault.json');
+  const claudeSettingsPath = path.join(vaultDir, 'claude', 'settings.json');
   const child = spawn(process.execPath, ['server.js'], {
     cwd: ROOT,
     env: {
@@ -36,6 +37,7 @@ test('serves local dashboard, enforces auth, and validates manual tests', async 
       PORT: String(port),
       LOCAL_KEY: KEY,
       EASYAI_VAULT_PATH: vaultPath,
+      EASYAI_CLAUDE_SETTINGS_PATH: claudeSettingsPath,
       NODE_OPTIONS: [process.env.NODE_OPTIONS, `--require=${path.join(ROOT, 'test-support', 'mock-upstreams.cjs')}`].filter(Boolean).join(' '),
     },
     stdio: 'ignore',
@@ -113,7 +115,12 @@ test('serves local dashboard, enforces auth, and validates manual tests', async 
     assert.equal([...pageHtml.matchAll(/<option value="/g)].length, 19, '18 documented clients and one generic option should be available');
     assert.match(pageHtml, /class="setup-sidebar"/);
     assert.match(pageHtml, /id="setup-client-list"/);
+    assert.match(pageHtml, /id="setup-recommended-client-list"/);
     assert.match(pageHtml, /id="setup-client-search"/);
+    assert.match(pageHtml, /id="quick-start"/);
+    assert.match(pageHtml, /id="setup-profile-list"/);
+    assert.match(pageHtml, /id="setup-apply"/);
+    assert.match(pageHtml, /id="apply-confirm-dialog"/);
     assert.match(pageHtml, /id="setup-content-scroll"/);
     assert.match(pageHtml, /docs\/client-guides\/third-party-api-setup\.html/);
     assert.match(pageHtml, /href="\/assets\/dashboard\.css"/);
@@ -145,6 +152,63 @@ test('serves local dashboard, enforces auth, and validates manual tests', async 
     assert.equal(unauthorized.status, 401);
 
     const vaultHeaders = { Authorization: `Bearer ${KEY}` };
+    const clientConfigStatus = await fetch(`${baseUrl}/api/client-config/claude-code`, { headers: vaultHeaders });
+    assert.equal(clientConfigStatus.status, 200);
+    assert.deepEqual(await clientConfigStatus.json(), {
+      path: claudeSettingsPath,
+      exists: false,
+      valid: true,
+    });
+    const clientConfig = {
+      baseUrl,
+      apiKey: KEY,
+      model: 'nvidia/test-model',
+    };
+    const crossOriginConfigApply = await fetch(`${baseUrl}/api/client-config/claude-code/apply`, {
+      method: 'POST',
+      headers: { ...vaultHeaders, Origin: 'http://example.com', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...clientConfig, confirmed: true }),
+    });
+    assert.equal(crossOriginConfigApply.status, 403);
+    const unconfirmedConfigApply = await fetch(`${baseUrl}/api/client-config/claude-code/apply`, {
+      method: 'POST',
+      headers: { ...vaultHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify(clientConfig),
+    });
+    assert.equal(unconfirmedConfigApply.status, 400);
+    const invalidConfigApply = await fetch(`${baseUrl}/api/client-config/claude-code/apply`, {
+      method: 'POST',
+      headers: { ...vaultHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...clientConfig, baseUrl: 'https://example.com', confirmed: true }),
+    });
+    assert.equal(invalidConfigApply.status, 400);
+
+    await fs.mkdir(path.dirname(claudeSettingsPath), { recursive: true });
+    await fs.writeFile(claudeSettingsPath, JSON.stringify({
+      theme: 'dark',
+      env: { KEEP_ME: 'preserved', ANTHROPIC_AUTH_TOKEN: 'old-token' },
+    }));
+    const applyConfigResponse = await fetch(`${baseUrl}/api/client-config/claude-code/apply`, {
+      method: 'POST',
+      headers: { ...vaultHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...clientConfig, confirmed: true }),
+    });
+    assert.equal(applyConfigResponse.status, 200);
+    const applyConfigResult = await applyConfigResponse.json();
+    assert.ok(applyConfigResult.backupPath);
+    assert.equal(JSON.stringify(applyConfigResult).includes(KEY), false);
+    assert.equal(JSON.stringify(applyConfigResult).includes('old-token'), false);
+    const appliedConfig = JSON.parse(await fs.readFile(claudeSettingsPath, 'utf8'));
+    assert.equal(appliedConfig.theme, 'dark');
+    assert.deepEqual(appliedConfig.env, {
+      KEEP_ME: 'preserved',
+      ANTHROPIC_AUTH_TOKEN: KEY,
+      ANTHROPIC_BASE_URL: baseUrl,
+      ANTHROPIC_MODEL: 'nvidia/test-model',
+    });
+    const backupConfig = JSON.parse(await fs.readFile(applyConfigResult.backupPath, 'utf8'));
+    assert.equal(backupConfig.env.ANTHROPIC_AUTH_TOKEN, 'old-token');
+
     const initialVaultStatus = await fetch(`${baseUrl}/api/vault/status`, { headers: vaultHeaders });
     assert.equal(initialVaultStatus.status, 200);
     assert.equal((await initialVaultStatus.json()).initialized, false);

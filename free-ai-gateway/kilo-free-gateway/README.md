@@ -125,6 +125,8 @@ start.cmd cline
 | POST | `/api/custom-providers/{id}/test` | 测试自定义服务商模型连接 |
 | GET | `/api/vault/status` | 本机凭据库锁定状态和服务商 Key 配置状态 |
 | POST | `/api/vault/setup`、`/api/vault/unlock`、`/api/vault/lock` | 创建、解锁或锁定本机凭据库 |
+| GET | `/api/client-config/claude-code` | 检查本机 Claude Code `settings.json` 是否存在及有效 |
+| POST | `/api/client-config/claude-code/apply` | 在用户明确确认后备份并更新 Claude Code 的本机配置 |
 | PUT、DELETE | `/api/vault/providers/sensenova` | 保存/替换或删除 SenseNova Key（Key 不会从接口回传） |
 | PUT、DELETE | `/api/vault/providers/internlm` | 保存/替换或删除 InternLM Key（Key 不会从接口回传） |
 | PUT、DELETE | `/api/vault/providers/scnet` | 保存/替换或删除 SCNet Key（Key 不会从接口回传） |
@@ -169,7 +171,9 @@ start.cmd cline
 
 ## 接入各客户端
 
-模型卡片上的「接入客户端」按手册覆盖全部 18 个工具：Chatbox、Cline、Cherry Studio、Continue、WorkBuddy、Trae、DeepSeek Harness、CC-Switch（Claude Code / Codex）、OpenCode、WorkSwarm、Loomy、Hermes Agent、OpenFIC、GitHub Copilot BYOK、VS Code GitHub Copilot Chat、Claude Code 直连和 QClaw。页面按各自流程提供配置字段与操作提示；配置切换器和客户端特有高级字段仍需在目标应用中按界面操作。向导只生成和复制配置，不会改写客户端文件。WorkBuddy 使用本机网关地址时，需确认请求从运行网关的同一台电脑发出；远程 / 云端请求无法直接访问 `127.0.0.1`。未设置 `LOCAL_KEY` 时可使用占位 API Key；设置后应填入本地口令。配置预览会遮蔽口令，但复制配置会包含真实口令，请妥善保管。
+首页提供四步首次接入进度：选择服务商、手动测试模型、配置客户端、确认客户端可用。客户端向导默认推荐 Claude Code、Cline 和 Continue，也可展开搜索全部支持的客户端；接入配置会根据服务商协议过滤不兼容选项。配置方案可保存在当前浏览器，内容仅包括客户端、服务商和模型，不保存任何 API Key 或本地访问口令；载入后需重新核对并输入当前凭据。
+
+向导默认生成和复制配置，不会静默改写客户端文件。Claude Code 首版支持可选的本机应用：点击「应用到 Claude Code」后先查看固定配置路径、将写入的环境变量和现有文件状态，再由用户确认；已有 `settings.json` 会先备份，其他配置项会保留。该操作仅适用于 Claude Code，不适用于自定义 OpenAI 兼容服务商。配置预览会遮蔽口令，但复制或应用配置会使用真实口令，请妥善保管。WorkBuddy 使用本机网关地址时，需确认请求从运行网关的同一台电脑发出；远程 / 云端请求无法直接访问 `127.0.0.1`。未设置 `LOCAL_KEY` 时可使用占位 API Key；设置后应填入本地口令。
 
 在模型卡片选择 WorkBuddy 后，可直接点「复制给 WorkBuddy」并粘贴到 WorkBuddy 对话框，或点「下载 Skill ZIP」后上传到 WorkBuddy 的 Skill 入口。源文件位于 `../configure-workbuddy-easyai-model/SKILL.md`。复制的指令不包含 API Key；Skill 会要求 WorkBuddy 在保存配置和发送测试请求前征求用户确认。
 
