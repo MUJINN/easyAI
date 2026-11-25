@@ -52,7 +52,7 @@ const VAULT_PROVIDERS = {
   internlm: '书生·端砚（InternLM）',
   scnet: '超算互联网（SCNet）',
 };
-const CUSTOM_PROVIDER_ID_PATTERN = /^custom-[a-f0-9-]{36}$/;
+const CUSTOM_PROVIDER_ID_PATTERN = /^custom-[^\s/]{1,80}$/iu;
 const VAULT_PASSWORD_MIN_LENGTH = 12;
 
 // SenseNova 配置（支持通过环境变量覆盖，用于测试）
@@ -93,8 +93,16 @@ const SCNET_UPSTREAM_HEADERS = {
   'user-agent': 'kilo-free-gateway/1.0',
 };
 
+const LOG_TIME_FORMATTER = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Shanghai',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+});
+
 function log(...args) {
-  console.log(new Date().toISOString().slice(11, 19), ...args);
+  console.log(LOG_TIME_FORMATTER.format(new Date()), ...args);
 }
 
 class VaultError extends Error {
@@ -206,6 +214,26 @@ async function saveVault(secrets, key, salt) {
 
 async function getVaultStatus() {
   const envelope = await readVaultEnvelope();
+  if (envelope && vaultKey && vaultSecrets) {
+    const legacyIds = Object.keys(vaultSecrets).filter((id) => /^custom-[a-f0-9-]{36}$/i.test(id));
+    if (legacyIds.length) {
+      const updatedSecrets = { ...vaultSecrets };
+      const updatedProviders = new Set(envelope.providers);
+      for (const legacyId of legacyIds) {
+        const config = updatedSecrets[legacyId];
+        if (!config || typeof config.name !== 'string') continue;
+        const newId = createCustomProviderId(config.name, updatedSecrets);
+        if (newId === legacyId) continue;
+        updatedSecrets[newId] = { ...updatedSecrets[legacyId], legacyId };
+        delete updatedSecrets[legacyId];
+        updatedProviders.delete(legacyId);
+        updatedProviders.add(newId);
+      }
+      await saveVault(updatedSecrets, vaultKey, Buffer.from(envelope.salt, 'base64'));
+      vaultSecrets = updatedSecrets;
+      envelope.providers = [...updatedProviders];
+    }
+  }
   const providerIds = new Set(envelope?.providers || []);
   const customProviders = [...providerIds]
     .filter((id) => CUSTOM_PROVIDER_ID_PATTERN.test(id))
@@ -239,6 +267,25 @@ function validateVaultPassword(password) {
   }
 }
 
+function slugifyProviderName(name) {
+  const readable = name
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 32);
+  return readable || 'provider';
+}
+
+function createCustomProviderId(name, secrets) {
+  const base = `custom-${slugifyProviderName(name)}`;
+  if (!Object.prototype.hasOwnProperty.call(secrets, base)) return base;
+  let suffix = 2;
+  while (Object.prototype.hasOwnProperty.call(secrets, `${base}-${suffix}`)) suffix++;
+  return `${base}-${suffix}`;
+}
+
 function validateCustomProvider(body, current) {
   const name = typeof body?.name === 'string' ? body.name.trim() : '';
   if (!name || name.length > 80) {
@@ -270,23 +317,43 @@ function validateCustomProvider(body, current) {
   if (key.length > 4096 || (!key && !current?.key)) {
     throw new VaultError(400, '请输入有效的 API Key（最多 4096 个字符）');
   }
-  return { name, baseUrl, key: key || current.key };
+  return {
+    name,
+    baseUrl,
+    key: key || current.key,
+    ...(current?.legacyId ? { legacyId: current.legacyId } : {}),
+  };
 }
 
 function getCustomProvider(id) {
   if (!CUSTOM_PROVIDER_ID_PATTERN.test(id || '')) return null;
-  const provider = vaultSecrets?.[id];
-  return provider && typeof provider === 'object' && typeof provider.key === 'string'
-    ? { ...provider, id }
-    : null;
+  const exact = vaultSecrets?.[id];
+  if (exact && typeof exact === 'object' && typeof exact.key === 'string') {
+    return { ...exact, id };
+  }
+  for (const [providerId, provider] of Object.entries(vaultSecrets || {})) {
+    if (
+      providerId !== id
+      && provider?.legacyId === id
+      && typeof provider.key === 'string'
+    ) {
+      return { ...provider, id: providerId };
+    }
+  }
+  return null;
 }
 
 function isCustomProviderModel(modelId) {
-  return typeof modelId === 'string' && /^custom-[a-f0-9-]{36}\//i.test(modelId);
+  return typeof modelId === 'string' && /^custom-[^/\s]+\//i.test(modelId);
 }
 
 function customProviderModel(modelId, provider) {
-  return modelId.slice(`${provider.id}/`.length);
+  for (const prefix of [provider.id, provider.legacyId]) {
+    if (typeof prefix === 'string' && modelId.startsWith(`${prefix}/`)) {
+      return modelId.slice(`${prefix}/`.length);
+    }
+  }
+  return modelId;
 }
 
 function requestCustomProvider(provider, pathname, method = 'GET', body = undefined, { stream = false } = {}) {
@@ -1000,7 +1067,7 @@ const server = http.createServer(async (req, res) => {
         }
         const body = await readBody(req);
         const config = validateCustomProvider(body, null);
-        const id = `custom-${crypto.randomUUID()}`;
+        const id = createCustomProviderId(config.name, vaultSecrets);
         const updatedSecrets = { ...vaultSecrets, [id]: config };
         const envelope = await readVaultEnvelope();
         if (!envelope) throw new VaultError(404, '凭据库尚未初始化');
@@ -1009,12 +1076,17 @@ const server = http.createServer(async (req, res) => {
         return json(res, 201, await getVaultStatus(), { 'cache-control': 'no-store' });
       }
 
-      const customProviderMatch = path.match(/^\/api\/vault\/custom-providers\/(custom-[a-f0-9-]{36})$/);
+      const customProviderMatch = path.match(/^\/api\/vault\/custom-providers\/(custom-[^/\s]+)$/iu);
       if (customProviderMatch && ['PUT', 'DELETE'].includes(req.method)) {
         if (!vaultKey || !vaultSecrets) {
           throw new VaultError(423, '请先解锁本机凭据库');
         }
-        const providerId = customProviderMatch[1];
+        let providerId;
+        try {
+          providerId = decodeURIComponent(customProviderMatch[1]);
+        } catch {
+          return json(res, 400, { error: { type: 'invalid_request', message: '服务商 ID 格式无效' } });
+        }
         const current = getCustomProvider(providerId);
         if (!current) throw new VaultError(404, '自定义服务商不存在');
         const envelope = await readVaultEnvelope();
@@ -1112,12 +1184,18 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { data: models, checked_at: new Date().toISOString() });
     }
 
-    const customCatalogMatch = path.match(/^\/api\/custom-providers\/(custom-[a-f0-9-]{36})\/catalog$/);
+    const customCatalogMatch = path.match(/^\/api\/custom-providers\/(custom-[^/\s]+)\/catalog$/iu);
     if (customCatalogMatch && req.method === 'GET') {
       if (!vaultKey || !vaultSecrets) {
         return json(res, 423, { error: { type: 'vault_locked', message: '请先解锁本机凭据库' } }, { 'cache-control': 'no-store' });
       }
-      const provider = getCustomProvider(customCatalogMatch[1]);
+      let providerId;
+      try {
+        providerId = decodeURIComponent(customCatalogMatch[1]);
+      } catch {
+        return json(res, 400, { error: { type: 'invalid_request', message: '服务商 ID 格式无效' } }, { 'cache-control': 'no-store' });
+      }
+      const provider = getCustomProvider(providerId);
       if (!provider) {
         return json(res, 404, { error: { type: 'not_configured', message: '自定义服务商不存在' } }, { 'cache-control': 'no-store' });
       }
@@ -1131,12 +1209,18 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { data: models, checked_at: new Date().toISOString() }, { 'cache-control': 'no-store' });
     }
 
-    const customTestMatch = path.match(/^\/api\/custom-providers\/(custom-[a-f0-9-]{36})\/test$/);
+    const customTestMatch = path.match(/^\/api\/custom-providers\/(custom-[^/\s]+)\/test$/iu);
     if (customTestMatch && req.method === 'POST') {
       if (!vaultKey || !vaultSecrets) {
         return json(res, 423, { error: { type: 'vault_locked', message: '请先解锁本机凭据库' } }, { 'cache-control': 'no-store' });
       }
-      const provider = getCustomProvider(customTestMatch[1]);
+      let providerId;
+      try {
+        providerId = decodeURIComponent(customTestMatch[1]);
+      } catch {
+        return json(res, 400, { error: { type: 'invalid_request', message: '服务商 ID 格式无效' } }, { 'cache-control': 'no-store' });
+      }
+      const provider = getCustomProvider(providerId);
       if (!provider) {
         return json(res, 404, { error: { type: 'not_configured', message: '自定义服务商不存在' } }, { 'cache-control': 'no-store' });
       }

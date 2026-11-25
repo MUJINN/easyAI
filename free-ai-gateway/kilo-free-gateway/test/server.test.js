@@ -70,6 +70,8 @@ test('serves local dashboard, enforces auth, and validates manual tests', async 
     assert.match(pageHtml, /id="vault-view"/);
     assert.match(pageHtml, /id="custom-provider-name"/);
     assert.match(pageHtml, /id="custom-provider-view"/);
+    assert.match(pageHtml, /id="test-prompt"[^>]*>Reply with OK\.<\/textarea>/);
+    assert.match(pageHtml, /id="custom-provider-test-prompt"[^>]*>Reply with OK\.<\/textarea>/);
     assert.match(pageHtml, /id="sensenova-view"/);
     assert.match(pageHtml, /id="internlm-view"/);
     assert.match(pageHtml, /id="scnet-view"/);
@@ -281,7 +283,8 @@ test('serves local dashboard, enforces auth, and validates manual tests', async 
     const createdCustomStatus = await createCustomProvider.json();
     const customProvider = createdCustomStatus.providers.find((provider) => provider.custom);
     assert.ok(customProvider);
-    assert.match(customProvider.id, /^custom-[a-f0-9-]{36}$/);
+    assert.match(customProvider.id, /^custom-[a-z0-9-]+$/);
+    assert.equal(customProvider.id, 'custom-custom-test-provider');
     assert.equal(customProvider.baseUrl, 'https://custom.example/v1');
     assert.equal(JSON.stringify(createdCustomStatus).includes(customProviderKey), false);
 
@@ -298,6 +301,29 @@ test('serves local dashboard, enforces auth, and validates manual tests', async 
     });
     assert.equal(customTestResponse.status, 200);
     assert.equal((await customTestResponse.json()).choices[0].message.content, 'custom provider works');
+
+    const createChineseCustomProvider = await fetch(`${baseUrl}/api/vault/custom-providers`, {
+      method: 'POST',
+      headers: { ...vaultHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: '百度千帆',
+        baseUrl: 'https://custom.example/v1',
+        key: customProviderKey,
+      }),
+    });
+    assert.equal(createChineseCustomProvider.status, 201);
+    const chineseCustomProvider = (await createChineseCustomProvider.json()).providers.find((provider) => provider.name === '百度千帆');
+    assert.equal(chineseCustomProvider.id, 'custom-百度千帆');
+    const encodedChineseProviderId = encodeURIComponent(chineseCustomProvider.id);
+    const chineseCatalogResponse = await fetch(`${baseUrl}/api/custom-providers/${encodedChineseProviderId}/catalog`, { headers: vaultHeaders });
+    assert.equal(chineseCatalogResponse.status, 200);
+    const chineseCatalog = await chineseCatalogResponse.json();
+    assert.deepEqual(chineseCatalog.data.map((model) => model.id), [`${chineseCustomProvider.id}/custom-test-model`]);
+    const chineseProviderDeleteResponse = await fetch(`${baseUrl}/api/vault/custom-providers/${encodedChineseProviderId}`, {
+      method: 'DELETE',
+      headers: vaultHeaders,
+    });
+    assert.equal(chineseProviderDeleteResponse.status, 200);
 
     const updateCustomProvider = await fetch(`${baseUrl}/api/vault/custom-providers/${customProvider.id}`, {
       method: 'PUT',

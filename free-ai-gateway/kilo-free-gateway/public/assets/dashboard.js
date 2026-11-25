@@ -90,7 +90,10 @@
         const h = document.createElement('div'); h.className='card-heading';
         const chk = document.createElement('span'); chk.className='card-check'; chk.setAttribute('aria-hidden','true'); h.append(chk);
         const tg = document.createElement('div'); tg.className='card-title-group';
-        const title = document.createElement('h2'); title.textContent = m.id; tg.append(title);
+        const title = document.createElement('h2');
+        const customPrefix = this.providerId.startsWith('custom-') ? `${this.providerId}/` : '';
+        title.textContent = customPrefix && m.id.startsWith(customPrefix) ? m.id.slice(customPrefix.length) : m.id;
+        tg.append(title);
         const copyBtn = document.createElement('button'); copyBtn.className='copy-model-button'; copyBtn.type='button'; copyBtn.textContent='复制';
         const clientModelId = modelIdForClient(m);
         copyBtn.title = '复制客户端使用的模型 ID（含服务商前缀）';
@@ -139,13 +142,13 @@
         const prompt = $(this.sels.testPrompt).value;
         if (ids.length > 5) {
           const promptPreview = prompt.trim().replace(/\s+/g, ' ').slice(0, 80);
-          const promptSummary = promptPreview ? `\n提示词预览：${promptPreview}${promptPreview.length < prompt.trim().length ? '…' : ''}` : '\n当前提示词为空。';
+          const promptSummary = promptPreview ? `\n提示词预览：${promptPreview}${promptPreview.length < prompt.trim().length ? '…' : ''}` : '\n未填写自定义提示词；测试将使用默认提示词：Reply with OK。';
           if (!window.confirm(`即将向 ${this.providerName} 上游依次发送 ${ids.length} 个请求，可能消耗额度或发送到不同服务商。${promptSummary}\n确定开始批量测试吗？`)) return;
         }
         this.testing=true; this.stopRequested=false; ids.forEach(id=>this.results.set(id,{status:'queued'})); this.updateControls(); this.render(); this._showResult(`准备按顺序测试 ${ids.length} 个 ${this.providerName} 模型…`,true); let ok=0, done=0; try{ for(const [i,id] of ids.entries()){ if(this.stopRequested) break; this.results.set(id,{status:'running'}); this._showResult(`正在测试 ${id}（${i+1}/${ids.length}）…`,true); this.render(); const t0=performance.now(); try{ const r=await fetch(this.testEndpoint,{method:'POST',headers:apiHeaders({'Content-Type':'application/json'}),body:JSON.stringify({model:id,prompt})}); const raw=await r.text(); const el=(performance.now()-t0)/1000; let p; try{p=JSON.parse(raw);}catch{p=raw;} if(!r.ok){ this.results.set(id,{status:'failed',elapsed:el,error:failureMessage(r.status,p,r.headers)}); }else{ this.results.set(id,{status:'success',elapsed:el,answer:p.choices?.[0]?.message?.content||JSON.stringify(p,null,2)}); recordOnboardingTest(this.providerId, id); ok++; } }catch(e){ this.results.set(id,{status:'failed',elapsed:(performance.now()-t0)/1000,error:`本机连接失败：${e.message}\n建议：确认网关仍在运行，浏览器打开的是 http://127.0.0.1:8899/；若刚设置 LOCAL_KEY，请重新填写并保存。`}); } done++; this.render(); } }finally{ if(this.stopRequested) ids.forEach(id=>{ if(this.results.get(id)?.status==='queued') this.results.set(id,{status:'stopped'}); }); this.testing=false; this.stopRequested=false; this.updateControls(); this.render(); const all=ok===ids.length; const msg=this.stopRequested?`已停止：完成 ${done}/${ids.length} 个模型，其中 ${ok} 个成功。`:`测试完成：${ok}/${ids.length} 个模型成功。`; this._showResult(`${msg} 各模型的回复或错误显示在对应卡片中。`,!this.stopRequested&&all); } }
       stop() { if(!this.testing||this.stopRequested) return; this.stopRequested=true; this.updateControls(); this._showResult('已请求停止。当前模型的请求结束后，将不会继续请求后续模型。',true); }
 
-      updatePromptPreview() { const note=$('#dock-prompt-preview'); if(!note) return; const prompt=$(this.sels.testPrompt).value.trim().replace(/\s+/g,' '); note.textContent=prompt?`测试提示词：${prompt.slice(0,100)}${prompt.length>100?'…':''}`:'测试提示词为空；开始前可编辑。'; }
+      updatePromptPreview() { const note=$('#dock-prompt-preview'); if(!note) return; const prompt=$(this.sels.testPrompt).value.trim().replace(/\s+/g,' '); note.textContent=prompt?`测试提示词：${prompt.slice(0,100)}${prompt.length>100?'…':''}`:'未填写自定义提示词；将使用默认提示词 Reply with OK。'; }
 
       updateControls() { const n=this.selection.size, filteredSelected=this.getFilteredModels().filter(m=>this.selection.has(m.id)).length, hiddenSelected=n-filteredSelected, t=this.testing, sr=this.stopRequested; $(this.sels.selectionStatus).textContent=n?`已选 ${n} 个；当前筛选可见 ${filteredSelected} 个${hiddenSelected?`，另有 ${hiddenSelected} 个被筛选隐藏`:''}。Shift 点击可范围多选，Ctrl+A 全选当前结果。`:'点击卡片选中；按住鼠标左键拖框，Shift 点击可范围多选。Ctrl+A 全选当前结果。'; const dock=$('#selection-dock'); dock.classList.toggle('visible',n>0); document.body.classList.toggle('has-selection-dock',n>0); $('#dock-selection-count').textContent=`已选择 ${n} 个模型`; this.updatePromptPreview(); const dis=(sel,lab)=>{const b=$(sel); if(b){b.disabled=t||n===0;b.textContent=t?'测试中…':lab;}}; const disStop=(sel)=>{const b=$(sel); if(b){b.hidden=!t;b.disabled=!t||sr;b.textContent=sr?'正在停止…':'停止测试';}}; const selectVisible=$(this.sels.selectVisibleBtn); if(selectVisible){selectVisible.disabled=t||this.getVisibleModels().length===0;} const selectedOnly=$(this.sels.selectedOnlyBtn); if(selectedOnly){selectedOnly.disabled=t||n===0; selectedOnly.setAttribute('aria-pressed',String(this.selectedOnly)); selectedOnly.textContent=this.selectedOnly?'显示全部结果':'仅看已选';} dis(this.sels.topTestBtn,'测试'); dis(this.sels.clearSelBtn,'清空选择'); disStop(this.sels.topStopBtn); const sbtn=$(this.sels.testBtn); if(sbtn){sbtn.disabled=t||n===0; sbtn.textContent=t?'按顺序测试中…':n>0?`逐个测试已选模型（${n}）`:'请选择模型';} $('#dock-test-button').disabled=t||n===0; $('#dock-stop-button').hidden=!t; $('#dock-stop-button').disabled=!t||sr; $('#dock-clear-button').disabled=t||n===0; }
 
@@ -407,7 +410,11 @@
         scnet: 'SCNet',
         custom: '自定义服务商',
       };
-      return labels[providerId] || (providerId.startsWith('custom-') ? '自定义服务商' : providerId);
+      if (labels[providerId]) return labels[providerId];
+      if (providerId.startsWith('custom-')) {
+        return state.vault?.providers?.find((provider) => provider.id === providerId)?.name || '自定义服务商';
+      }
+      return providerId;
     }
 
     function updateThemeToggle() {
